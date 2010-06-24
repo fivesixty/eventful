@@ -310,7 +310,7 @@ Eventful.Object = (function () {
         }
       }
     },
-      EventedObject = EventedObjectObject.prototype = Eventful.Mixin();
+    EventedObject = EventedObjectObject.prototype = Eventful.Mixin();
   
   /**
     * Support for adding dependent calculated properties.
@@ -589,7 +589,11 @@ Eventful.Layout = (function () {
                 var attr = p;
                 var redrawAttribute = (function () {
                   var attrVal = attrs[attr].replace(pattern, function (match, token) {
-                    return lcontext.get(token);
+                    if (lcontext.get) {
+                      return lcontext.get(token);
+                    } else {
+                      return lcontext[token];
+                    }
                   });
                   element.attr(attr, attrVal);
                   return arguments.callee;
@@ -662,7 +666,7 @@ Eventful.Layout = (function () {
 
   Layout.Template = function (name, gen) {
     var lineending = jQuery.browser.msie ? "\r\n" : "\n";
-    templates[name] = "(" + gen.toString().replace(") {" + lineending, ") {\n return") + ")(context)";
+    templates[name] = "(" + gen.toString() + ")(context)";
   }
   
   Layout.Render = function (template, parent, property) {
