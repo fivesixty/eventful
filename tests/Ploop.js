@@ -1,7 +1,7 @@
 var Test = Test || {};
 
 Test.Ploop = function () {
-  module("Eventful.Ploop");
+  module("Ploop");
 
   asyncTest("async", function() {
     var scope = {
