@@ -17,7 +17,7 @@ Test.Ploop = function () {
   });
 
   asyncTest("every", function() {
-    expect(4);
+    expect(5);
     
     var count = 0;
     var control = Eventful.Ploop.every(50, function () {
@@ -26,6 +26,7 @@ Test.Ploop = function () {
       
       if (count === 2) {
         control.stop();
+        ok( true, "stop() and start() executing." );
         setTimeout(control.start, 50);
       }
       

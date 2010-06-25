@@ -337,11 +337,15 @@ Eventful.Object = (function () {
     * Wrapper for triggering a change of a property, triggering dependencies too.
     **/
   EventedObject.triggerChange = function (property, bubbled) {
+    if (this.cache && this.cache[property]) {
+      delete this.cache[property];
+    }
+    
     this.triggerEvent(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
     this.triggerEvent("propertyChanged", {property: property, bubbled: bubbled ? true:false});
     if (this.valueDependencies && this.valueDependencies[property]) {
       for (var i = 0; i < this.valueDependencies[property].length; i += 1) {
-        this.triggerEvent(this.valueDependencies[property][i] + "Changed", {value: this.get(this.valueDependencies[property][i]), bubbled: bubbled ? true:false});
+        this.triggerChange(this.valueDependencies[property][i], bubbled);
       }
     }
   };
@@ -352,6 +356,15 @@ Eventful.Object = (function () {
     **/
   EventedObject.get = function (prop) {
     if (typeof this[prop] === "function") {
+      if (this[prop].cacheableProperty) {
+        if (this.cache === undefined) {
+          this.cache = [];
+        }
+        if (this.cache[prop] === undefined) {
+          this.cache[prop] = this[prop]();
+        }
+        return this.cache[prop];
+      }
       return this[prop]();
     } else {
       return this[prop];
@@ -365,6 +378,7 @@ Eventful.Object = (function () {
     if (this[prop] !== undefined && this[prop].removeCallbacks !== undefined) {
       this[prop].removeCallbacks(this.getID());
     }
+    
     if (typeof value === "function") {
       this.calculatedProperty(prop, value, value.propertyDependencies);
     } else {
@@ -655,7 +669,8 @@ Eventful.Layout = (function () {
       "ul", "ol", "li", 
       "dl", "dt", "dd",
       "h1", "h2", "h3", "h4", "h5", "h6", "h7",
-      "form", "input", "label"
+      "form", "input", "label",
+      "b", "strong", "i", "u"
     ];
   for (var i = 0, len = tags.length; i < len; i++) {
     var tagName = tags[i];
@@ -732,6 +747,11 @@ Function.prototype.dependsOn = function () {
   for (var i = 0, len = arguments.length; i < len; i += 1) {
     this.propertyDependencies.push(arguments[i]);
   }
+  return this;
+};
+
+Function.prototype.cacheable = function () {
+  this.cacheableProperty = true;
   return this;
 };
 
