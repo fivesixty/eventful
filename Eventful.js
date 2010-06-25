@@ -288,6 +288,8 @@ Eventful.Mixin = function (target) {
   return target;
 };
 
+Eventful.enableBubbling = false;
+
 /**
   * Simple EventedObject.
   *
@@ -376,7 +378,7 @@ Eventful.Object = (function () {
     /**
       * Enable event bubbling.
       **/
-    if (value.isEventable) {
+    if (Eventful.enableBubbling && value.isEventable) {
       if (value.constructor === Array) {
         var eventName = "elementChanged";
       } else if (value.constructor === Object) {
@@ -428,7 +430,7 @@ Eventful.Array = (function() {
   EventedArray.subscribeEvents = function (args) {
     var $this = this;
     for (var i = 0, len = args.length; i < len; i++) {
-      if (args[i].isEventable) {
+      if (Eventful.enableBubbling && args[i].isEventable) {
         if (args[i].constructor === Array) {
           var eventName = "elementChanged";
         } else if (args[i].constructor === Object) {
@@ -560,8 +562,8 @@ Eventful.Layout = (function () {
   var context = {};
 
   function tag(tagName, attrs) {
-
-    if (typeof attrs !== "object" || (attrs instanceof jQuery)) {
+    
+    if (attrs instanceof Array || typeof attrs !== "object" || (attrs instanceof jQuery)) {
       var offset = 1, id;
     } else {
       var offset = 2, id = attrs.id;
@@ -637,6 +639,8 @@ Eventful.Layout = (function () {
         element.append(arguments[i]());
       } else if (arguments[i] instanceof jQuery) {
         arguments[i].appendTo(element);
+      } else if (arguments[i] instanceof Array) {
+        console.log("Array arguments for tags not yet implemented.");
       } else {
         element.append(arguments[i]);
       }
@@ -669,21 +673,34 @@ Eventful.Layout = (function () {
     templates[name] = "(" + gen.toString() + ")(context)";
   }
   
+  /** Hack for later:
+    * Because redraw is lazily evaluated when added to a template, pass in the parent at that time.
+    * Also pass in the previous element or an indicator that this is the first element.
+    * And then either insert or append afterwards.
+    *
+    * Must also keep a list of elements drawn, that can then be removed when a redraw is required.
+    **/
   Layout.Render = function (template, parent, property) {
     var renderID = Eventful.newID();
     var el = $("<div></div>");
+    var data;
     
     var redraw = function (sender, e) {
       if (e !== undefined && e.bubbled === true)
         return;
       var oldContext = context;
-      var data = parent.get(property);
+      if (data !== undefined && data.isEventful) {
+        data.removeCallbacks(renderID);
+      }
+      data = parent.get(property);
       if (!(data instanceof Array)) {
         data = [data];
       } else {
-        data.bindCallback("elementChanged", redraw, renderID);
+        if (data.isEventful)
+          data.bindCallback("elementChanged", redraw, renderID);
       }
       el.empty();
+      
       data.each(function (datum) {
         context = datum;
         with (tagFuncs) {
