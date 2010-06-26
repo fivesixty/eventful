@@ -423,6 +423,39 @@ Eventful.Object = (function () {
   return EventedObjectObject;
 }());
 
+/**
+  * Constructor Creator
+  * First argument is an array of arguments for the constructor.
+  * Second is an object with properties:
+  * init:
+  *   an object with constructors for properties that need to be created inside the constructor
+  * calc:
+  *   an object with calculated properties for the object
+  **/
+Eventful.Model = (function() {
+  
+  return function (constructor, properties) {
+    constructor = constructor || [];
+    properties = properties || {};
+    
+    function Model() {
+      if (properties.init) {
+        for (var p in properties.init) {
+          if (properties.init.hasOwnProperty(p)) {
+            this.set(p, new properties.init[p]());
+          }
+        }
+      }
+      for (var i = 0, len = constructor.length; i < len; i++) {
+        this.set(constructor[i], arguments[i]);
+      }
+    }
+    Model.prototype = new Eventful.Object(properties.calc || {});
+    
+    return Model;
+  };
+  
+}());
 
 /**
   * Eventful.Array implementation.
@@ -506,67 +539,6 @@ Eventful.Array = (function() {
   };
   
   return EventedArrayObject;
-}());
-
-
-/**
-  * Singleton object for storing and drawing templates.
-  **/
-Eventful.Templates = (function () {
-
-  var Templates = {},
-      templatesHash = {},
-      bindings = {},
-      redrawQueued = false;
-  
-  Templates.add = function (name, template) {
-    templatesHash[name] = template;
-  };
-  
-  /**
-    * Redraw any dirty bindings.
-    **/
-  function redraw() {
-    for (var bind in bindings) {
-      if (bindings[bind].dirty) {
-        bindings[bind].redraw();
-        bindings[bind].dirty = false;
-      }
-    }
-    redrawQueued = false;
-  }
-  
-  /**
-    * Ask for a redraw loop if one isn't waiting to execute.
-    **/
-  function queueRedraw() {
-    if (!redrawQueued) {
-      redrawQueued = true;
-      setTimeout(redraw, 25);
-    }
-  }
-  
-  /**
-    * Bind a template and object to the innerHTML of a given elements ID.
-    **/
-  Templates.bindTemplate = function (templateName, eventedObject, targetID) {
-    bindings[targetID] = {
-      dirty: true,
-      element: document.getElementById(targetID),
-      redraw: function () {
-          console.log(targetID + " redrawn.");
-          this.element.innerHTML = Mustache.to_html(templatesHash[templateName], eventedObject, templatesHash);
-        }
-    }
-    eventedObject.bindCallback("propertyChanged", function () {
-      bindings[targetID].dirty = true;
-      queueRedraw();
-    }, 0);
-    queueRedraw();
-  };
-  
-  return Templates;
-
 }());
 
 Eventful.Layout = (function () {
