@@ -629,10 +629,10 @@ Eventful.Layout = (function () {
         }( arguments[i], context ));
         
       } else if (typeof (arguments[i]) === "function") {
-        // Sub templates return a function that must be evaluated
-        // to return the elements.
+        // Sub templates return a function that must be passed
+        // the parent element.
         
-        element.append(arguments[i]());
+        arguments[i](element);
       } else if (arguments[i] instanceof jQuery) {
         arguments[i].appendTo(element);
       } else if (arguments[i] instanceof Array) {
@@ -684,7 +684,8 @@ Eventful.Layout = (function () {
       "dl", "dt", "dd",
       "h1", "h2", "h3", "h4", "h5", "h6", "h7",
       "form", "input", "label",
-      "b", "strong", "i", "u"
+      "tt", "i", "b", "big", "small",
+      "em", "strong", "dfn", "code", "samp", "kbd", "var", "cite"
     ];
   for (var i = 0, len = tags.length; i < len; i++) {
     var tagName = tags[i];
@@ -713,34 +714,69 @@ Eventful.Layout = (function () {
     **/
   Layout.Render = function (template, parent, property) {
     var renderID = Eventful.newID();
-    var el = $("<div></div>");
-    var data;
+    
+    // el is the start marker tag in the DOM so we know where to insert to.
+    var el = $('<div style="display: none;">');
+    var data, elements = [];
     
     var redraw = function (sender, e) {
-      if (e !== undefined && e.bubbled === true)
+      // Don't redraw on bubbled changes (tag bindings update from these).
+      if (e !== undefined && e.bubbled === true) {
         return;
-      var oldContext = context;
-      if (data !== undefined && data.isEventable) {
-        data.removeCallbacks(renderID);
       }
+      
+      // Save the context, so we can restore it later.
+      var oldContext = context;
+      
+      // If called with a single argument, is the parent tag() rendering
+      // append our start marker tag to the parent tag
+      if (e === undefined && sender !== undefined) {
+        el.appendTo(sender);
+      }
+      
+      // If this is not the first time called (we have a previous data context stored.
+      if (data !== undefined) {
+        // Remove binding. Data was likely an Eventful.Array
+        if (data.isEventable) {
+          data.removeCallbacks(renderID);
+        }
+        
+        // Remove all elements added previously.
+        elements.each(function (el) {
+          $(el).remove();
+        });
+        elements = [];
+      }
+      
+      // Get the new data context, and wrap into an array for ease of iteration.
       data = parent.get(property);
       if (!(data instanceof Array)) {
         data = [data];
       } else {
+        // If it's an eventful array, bind redraw to changes in elements.
         if (data.isEventable)
           data.bindCallback("elementChanged", redraw, renderID);
       }
-      el.empty();
+      
+      // Iterate over the data elements.
+      var pEl = el;
       data.each(function (datum) {
+        // Assign a context, to be used from within the tag function calls.
         context = datum;
+        
+        // Bind scope to tag functions for the eval (inspired by Jaml)
         with (tagFuncs) {
           var ret = eval(templates[template]);
-          el.append(ret);
+          pEl.after(ret);
+          pEl = ret;
+          elements.push(ret[0]);
         }
       });
+      
+      // Restore the context.
       context = oldContext;
-      return el;
     }
+    // Bind the redraw to changes to our data context.
     parent.bindCallback(property + "Changed", redraw, renderID);
     
     return redraw;
@@ -749,7 +785,7 @@ Eventful.Layout = (function () {
   Layout.Draw = function (selector) {
     var el = $(selector).empty();
     for (var i = 1, len = arguments.length; i < len; i++) {
-      arguments[i]().appendTo(el);
+      arguments[i](el);
     }
   }
   Layout.tag = tag;
