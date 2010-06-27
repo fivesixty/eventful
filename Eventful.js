@@ -26,46 +26,46 @@ Eventful.Ploop = (function () {
     * IE postMessage is synchronous. This wouldn't be a problem except for the 
     * recursion limit through window defined objects, which postMessage is.
     **/
-  if (window['addEventListener'] && window['postMessage']) {
-    var queue = [], front = 0, back = 0, messageName = "#A";
     
-    function handleMessage(event) {
-      if (event.source.UID === window.UID && event.data === messageName) {
-        if (event.stopPropagation) {
-          event.stopPropagation();
-        } else {
-          event.cancelBubble = true;
-        }
-        if (back > 0) {
-          timeouts[front][1].apply(timeouts[front][0], timeouts[front][2]);
-          front += 1;
-          if (front === back) {
-            timeouts = [];
-            front = back = 0;
-            console.log("Event queue cleared.");
-          }
-        }
+  var eventTrigger = window['addEventListener'] && window['postMessage'] ? "event" : "timeout";
+  
+  var queue = [], front = 0, back = 0, messageName = "#A";
+    
+  function handleMessage(event) {
+    if (event && !(event.source.UID === window.UID && event.data === messageName)) {
+      return;
+    }
+    if (event) {
+      if (event.stopPropagation) {
+        event.stopPropagation();
+      } else {
+        event.cancelBubble = true;
       }
     }
     
+    if (back > 0) {
+      timeouts[front][1].apply(timeouts[front][0], timeouts[front][2]);
+      front += 1;
+      if (front === back) {
+        timeouts = [];
+        front = back = 0;
+        console.log("Event queue cleared.");
+      }
+    }
+  }
+    
+  Ploop.async = function (scope, fn, args) {
+    timeouts[back] = [scope, fn, args];
+    back += 1;
+    eventTrigger ? window.postMessage(messageName, "*") : setTimeout(handleMessage, 0);
+  };
+    
+  if (eventTrigger) {
     if (window['addEventListener']) {
       window.addEventListener("message", handleMessage, true);
     } else {
       window.attachEvent("onmessage", handleMessage);
     }
-    
-    Ploop.async = function (scope, fn, args) {
-      // fn.apply(scope, args);
-      timeouts[back] = [scope, fn, args];
-      back += 1;
-      window.postMessage(messageName, "*");
-    };
-  } else {
-    Ploop.async = function (scope, fn, args) {
-      setTimeout(function() {
-        fn.apply(scope, args);
-      }, 0);
-    };
   }
   
   /**
@@ -810,8 +810,3 @@ Array.prototype.each = function (callback) {
     callback(this[i]);
   }
 };
-
-Eventful.Object.prototype.delay =
-Eventful.Array.prototype.delay = function (time, callback) {
-  setTimeout(callback, time);
-}
