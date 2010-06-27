@@ -1,5 +1,3 @@
-//= require <jquery>
-
 Eventful.Layout = (function () {
   
   var Layout = {};
