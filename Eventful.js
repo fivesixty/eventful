@@ -651,9 +651,9 @@ Eventful.Layout = (function () {
       **/
     if (context.isEventable) {
       (function ( context ) {
-        element.data("eventfulUnbind", function () {
+        element[0]["eventfulUnbind"] = function () {
           context.removeCallbacks(eID);
-        });
+        };
       }( context ));
     }
     return element;
@@ -665,8 +665,9 @@ Eventful.Layout = (function () {
   jQuery._cleanData = jQuery.cleanData;
   jQuery.cleanData = function ( elems ) {
     for ( var i = 0, elem; (elem = elems[i]) != null; i++ ) {
-      if (elem[ jQuery.expando ] && jQuery.cache[ elem[ jQuery.expando ] ] && jQuery.cache[ elem[ jQuery.expando ] ][ "eventfulUnbind" ]) {
-        jQuery.cache[ elem[ jQuery.expando ] ][ "eventfulUnbind" ]();
+      if (elem[ "eventfulUnbind" ]) {
+        elem["eventfulUnbind"]();
+        elem["eventfulUnbind"] = null;
       }
     }
     return jQuery._cleanData.apply(this, arguments);
