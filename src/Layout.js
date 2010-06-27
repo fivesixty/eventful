@@ -159,7 +159,12 @@ Eventful.Layout = (function () {
     * Bind the template function to be called with the context.
     **/
   Layout.Template = function (name, gen) {
-    templates[name] = "(" + gen.toString() + ")(context)";
+    var fnStr = gen.toString();
+    fnStr = fnStr.replace(/([^\.][a-z0-9]+)\(/ig, function (match, token) {
+      return tagFuncs[token.substring(1)] ? (token.substring(0, 1) + "tagFuncs." + token.substring(1) + "(") : match;
+    });
+    fnStr = "return (" + fnStr + "(context));";
+    templates[name] = new Function("context", "tagFuncs", fnStr);
   }
   
   /**
@@ -219,12 +224,10 @@ Eventful.Layout = (function () {
         context = datum;
         
         // Bind scope to tag functions for the eval (inspired by Jaml)
-        with (tagFuncs) {
-          var ret = eval(templates[template]);
-          pEl.after(ret);
-          pEl = ret;
-          elements.push(ret[0]);
-        }
+        var ret = templates[template](context, tagFuncs);
+        pEl.after(ret);
+        pEl = ret;
+        elements.push(ret[0]);
       });
       
       // Restore the context.

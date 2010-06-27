@@ -6113,7 +6113,12 @@ Eventful.Layout = (function () {
   var templates = {};
 
   Layout.Template = function (name, gen) {
-    templates[name] = "(" + gen.toString() + ")(context)";
+    var fnStr = gen.toString();
+    fnStr = fnStr.replace(/([^\.][a-z0-9]+)\(/ig, function (match, token) {
+      return tagFuncs[token.substring(1)] ? (token.substring(0, 1) + "tagFuncs." + token.substring(1) + "(") : match;
+    });
+    fnStr = "return (" + fnStr + "(context));";
+    templates[name] = new Function("context", "tagFuncs", fnStr);
   }
 
   Layout.Render = function (template, parent, property) {
@@ -6156,12 +6161,10 @@ Eventful.Layout = (function () {
       data.each(function (datum) {
         context = datum;
 
-        with (tagFuncs) {
-          var ret = eval(templates[template]);
-          pEl.after(ret);
-          pEl = ret;
-          elements.push(ret[0]);
-        }
+        var ret = templates[template](context, tagFuncs);
+        pEl.after(ret);
+        pEl = ret;
+        elements.push(ret[0]);
       });
 
       context = oldContext;

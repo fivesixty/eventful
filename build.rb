@@ -1,6 +1,6 @@
 require :rubygems
 require :Sprockets
-require :jsmin
+require 'closure-compiler'
 
 EVT = 'build/Eventful.js'
 EVTNJ = 'build/Eventful.nojquery.js'
@@ -15,7 +15,7 @@ concatenation = Sprockets::Secretary.new(
 # Write the concatenation to disk
 concatenation.save_to(EVT)
 # Produce minified
-File.open(MINFILE, 'w') { |file| file.write(JSMin.minify(concatenation.to_s)) }
+File.open(MINFILE, 'w') { |file| file.write(Closure::Compiler.new(:compilation_level => 'SIMPLE_OPTIMIZATIONS').compile(concatenation.to_s)) }
 
 # Save version without jquery bundled.
 Sprockets::Secretary.new(
