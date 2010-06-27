@@ -578,8 +578,6 @@ Eventful.Layout = (function () {
       var offset = 2, id = attrs.id;
     }
     
-    var lcontext = context;
-    
     var eID = Eventful.newID();
     
     if (id === undefined) {
@@ -588,6 +586,9 @@ Eventful.Layout = (function () {
       var element = $("<" + tagName + " id=\"" + id + "\" />");
     }
     
+    /**
+      * Attributes.
+      **/
     if (offset === 2) {
       for (var p in attrs) {
         if (attrs.hasOwnProperty(p)) {
@@ -595,34 +596,42 @@ Eventful.Layout = (function () {
             case "id":
               break;
             default:
-              (function (attr) {
-                var redrawAttribute = (function () {
-                  element.attr(attr, replaceTokens(lcontext, attrs[attr]));
-                  return arguments.callee;
-                }());
+              (function ( attr, templateStr, context ) {
+                function redraw() {
+                  element.attr(attr, replaceTokens(context, templateStr));
+                };
+                redraw();
                 
-                bindTokens(lcontext, attrs[attr], redrawAttribute, eID);
-              }(p));
+                bindTokens(context, templateStr, redraw, eID);
+              }( p, attrs[p], context ));
           }
         }
       }
     }
     
+    /**
+      * Contents.
+      **/
     for (var i = offset, len = arguments.length; i < len; i++) {
       if (typeof (arguments[i]) === "string") {
+        // Wrap strings inside a span for a redraw closure,
+        // so they can be redrawn individually on changes.
       
-        (function (templateStr) {
-          var subel = $("<span></span>"),
-            redrawAttribute = (function () {
-              subel.html(replaceTokens(lcontext, templateStr));
-              return arguments.callee;
-            }());
+        (function ( templateStr, context ) {
+          var subel = $("<span></span>").appendTo(element);
           
-          bindTokens(lcontext, templateStr, redrawAttribute, eID);
-          element.append(subel);
-        }(arguments[i]));
+          function redraw() {
+            subel.html(replaceTokens(context, templateStr));
+          };
+          redraw();
+          
+          bindTokens(context, templateStr, redraw, eID);
+        }( arguments[i], context ));
         
       } else if (typeof (arguments[i]) === "function") {
+        // Sub templates return a function that must be evaluated
+        // to return the elements.
+        
         element.append(arguments[i]());
       } else if (arguments[i] instanceof jQuery) {
         arguments[i].appendTo(element);
@@ -632,14 +641,27 @@ Eventful.Layout = (function () {
         element.append(arguments[i]);
       }
     }
-    if (lcontext.isEventable) {
-      element.data("eventfulUnbind", function () {
-        lcontext.removeCallbacks(eID);
-      });
+    
+    /**
+      * Store a destructor in the jQuery data for the element.
+      * This will remove event bindings to the context, and is called by the
+      * wrapper around jQuery.cleanData.
+      *
+      * Prevents build up of event hooks to removed DOM elements.
+      **/
+    if (context.isEventable) {
+      (function ( context ) {
+        element.data("eventfulUnbind", function () {
+          context.removeCallbacks(eID);
+        });
+      }( context ));
     }
     return element;
   }
   
+  /**
+    * Wrap around jQuery.cleanData to clear Eventful bindings from removed elements.
+    **/
   jQuery._cleanData = jQuery.cleanData;
   jQuery.cleanData = function ( elems ) {
     for ( var i = 0, elem; (elem = elems[i]) != null; i++ ) {
@@ -649,7 +671,10 @@ Eventful.Layout = (function () {
     }
     return jQuery._cleanData.apply(this, arguments);
   }
-
+  
+  /**
+    * Storage object for functions scoped to the template drawing.
+    **/
   var tagFuncs = {}, tags = [
       "html", "head", "body", "script", "meta", "title", "link", "script",
       "div", "p", "span", "a", "img", "br", "hr",
@@ -671,8 +696,10 @@ Eventful.Layout = (function () {
 
   var templates = {};
 
+  /**
+    * Bind the template function to be called with the context.
+    **/
   Layout.Template = function (name, gen) {
-    var lineending = jQuery.browser.msie ? "\r\n" : "\n";
     templates[name] = "(" + gen.toString() + ")(context)";
   }
   
