@@ -686,18 +686,17 @@ Eventful.Layout = (function () {
       if (e !== undefined && e.bubbled === true)
         return;
       var oldContext = context;
-      if (data !== undefined && data.isEventful) {
+      if (data !== undefined && data.isEventable) {
         data.removeCallbacks(renderID);
       }
       data = parent.get(property);
       if (!(data instanceof Array)) {
         data = [data];
       } else {
-        if (data.isEventful)
+        if (data.isEventable)
           data.bindCallback("elementChanged", redraw, renderID);
       }
       el.empty();
-      
       data.each(function (datum) {
         context = datum;
         with (tagFuncs) {
