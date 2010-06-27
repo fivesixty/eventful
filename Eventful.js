@@ -241,7 +241,7 @@ Eventful.Mixin = function (target) {
     * Removes all callbacks for given Caller.
     **/
   target.removeCallbacks = function (callerID) {
-    console.log("Removing callbacks of " + callerID + " from " + this.getID());
+    // console.log("Removing callbacks of " + callerID + " from " + this.getID());
     /** TODO: Make Safer **/
     for (var i in this._Listeners) {
       if (this._Listeners[i][callerID] !== undefined)
@@ -544,8 +544,31 @@ Eventful.Array = (function() {
 Eventful.Layout = (function () {
   
   var Layout = {};
-  
   var context = {};
+  var pattern = /{{(.*?)}}/g;
+  
+  function replaceTokens(context, string) {
+    return string.replace(pattern, function (match, token) {
+      if (token === ".") {
+        return context;
+      } else if (context.get) {
+        return context.get(token);
+      } else {
+        return context[token];
+      }
+    });
+  }
+
+  function bindTokens(context, string, redraw, eID) {
+    var tokens = [];
+    string.replace(pattern, function (match, token) {
+      if (token !== ".") {
+        context.bindCallback (token + "Changed", redraw, eID);
+        tokens.push(token);
+      }
+    });
+    return tokens;
+  }
 
   function tag(tagName, attrs) {
     
@@ -555,15 +578,14 @@ Eventful.Layout = (function () {
       var offset = 2, id = attrs.id;
     }
     
-    var pattern = /{{(.*?)}}/g,
-        lcontext = context;
+    var lcontext = context;
     
     var eID = Eventful.newID();
     
     if (id === undefined) {
-      var element = $("<" + tagName + "></" + tagName + ">");
+      var element = $("<" + tagName + " />");
     } else {
-      var element = $("<" + tagName + " id=\"" + id + "\"></" + tagName + ">");
+      var element = $("<" + tagName + " id=\"" + id + "\" />");
     }
     
     if (offset === 2) {
@@ -573,29 +595,14 @@ Eventful.Layout = (function () {
             case "id":
               break;
             default:
-              (function () {
-                var attr = p;
+              (function (attr) {
                 var redrawAttribute = (function () {
-                  var attrVal = attrs[attr].replace(pattern, function (match, token) {
-                    if (token === ".") {
-                      return lcontext;
-                    }
-                    if (lcontext.get) {
-                      return lcontext.get(token);
-                    } else {
-                      return lcontext[token];
-                    }
-                  });
-                  element.attr(attr, attrVal);
+                  element.attr(attr, replaceTokens(lcontext, attrs[attr]));
                   return arguments.callee;
                 }());
                 
-                attrs[attr].replace(pattern, function (match, token, offset, string) {
-                  if (token !== ".") {
-                    lcontext.bindCallback (token + "Changed", redrawAttribute, eID);
-                  }
-                });
-              }());
+                bindTokens(lcontext, attrs[attr], redrawAttribute, eID);
+              }(p));
           }
         }
       }
@@ -603,34 +610,18 @@ Eventful.Layout = (function () {
     
     for (var i = offset, len = arguments.length; i < len; i++) {
       if (typeof (arguments[i]) === "string") {
-        var arg = arguments[i];
-        (function () {
-          var templateStr = arg,
-            subel = $("<span></span>"),
+      
+        (function (templateStr) {
+          var subel = $("<span></span>"),
             redrawAttribute = (function () {
-              var attrVal = templateStr.replace(pattern, function (match, token) {
-                if (token === ".") {
-                  return lcontext;
-                }
-                if (lcontext.get) {
-                  return lcontext.get(token);
-                } else {
-                  return lcontext[token];
-                }
-              });
-              
-              subel.html(attrVal);
+              subel.html(replaceTokens(lcontext, templateStr));
               return arguments.callee;
             }());
           
-          templateStr.replace(pattern, function (match, token, offset, string) {
-            if (token !== ".") {
-              lcontext.bindCallback (token + "Changed", redrawAttribute, eID);
-            }
-          });
-          
+          bindTokens(lcontext, templateStr, redrawAttribute, eID);
           element.append(subel);
-        }());
+        }(arguments[i]));
+        
       } else if (typeof (arguments[i]) === "function") {
         element.append(arguments[i]());
       } else if (arguments[i] instanceof jQuery) {
@@ -641,7 +632,22 @@ Eventful.Layout = (function () {
         element.append(arguments[i]);
       }
     }
+    if (lcontext.isEventable) {
+      element.data("eventfulUnbind", function () {
+        lcontext.removeCallbacks(eID);
+      });
+    }
     return element;
+  }
+  
+  jQuery._cleanData = jQuery.cleanData;
+  jQuery.cleanData = function ( elems ) {
+    for ( var i = 0, elem; (elem = elems[i]) != null; i++ ) {
+      if (elem[ jQuery.expando ] && jQuery.cache[ elem[ jQuery.expando ] ] && jQuery.cache[ elem[ jQuery.expando ] ][ "eventfulUnbind" ]) {
+        jQuery.cache[ elem[ jQuery.expando ] ][ "eventfulUnbind" ]();
+      }
+    }
+    return jQuery._cleanData.apply(this, arguments);
   }
 
   var tagFuncs = {}, tags = [
@@ -718,7 +724,7 @@ Eventful.Layout = (function () {
       arguments[i]().appendTo(el);
     }
   }
-  
+  Layout.tag = tag;
   return Layout;
 }());
 
