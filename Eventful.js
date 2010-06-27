@@ -577,6 +577,9 @@ Eventful.Layout = (function () {
                 var attr = p;
                 var redrawAttribute = (function () {
                   var attrVal = attrs[attr].replace(pattern, function (match, token) {
+                    if (token === ".") {
+                      return lcontext;
+                    }
                     if (lcontext.get) {
                       return lcontext.get(token);
                     } else {
@@ -588,7 +591,9 @@ Eventful.Layout = (function () {
                 }());
                 
                 attrs[attr].replace(pattern, function (match, token, offset, string) {
-                  lcontext.bindCallback (token + "Changed", redrawAttribute, eID);
+                  if (token !== ".") {
+                    lcontext.bindCallback (token + "Changed", redrawAttribute, eID);
+                  }
                 });
               }());
           }
@@ -604,6 +609,9 @@ Eventful.Layout = (function () {
             subel = $("<span></span>"),
             redrawAttribute = (function () {
               var attrVal = templateStr.replace(pattern, function (match, token) {
+                if (token === ".") {
+                  return lcontext;
+                }
                 if (lcontext.get) {
                   return lcontext.get(token);
                 } else {
@@ -616,7 +624,9 @@ Eventful.Layout = (function () {
             }());
           
           templateStr.replace(pattern, function (match, token, offset, string) {
-            lcontext.bindCallback (token + "Changed", redrawAttribute, eID);
+            if (token !== ".") {
+              lcontext.bindCallback (token + "Changed", redrawAttribute, eID);
+            }
           });
           
           element.append(subel);
