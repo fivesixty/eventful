@@ -705,12 +705,9 @@ Eventful.Layout = (function () {
     templates[name] = "(" + gen.toString() + ")(context)";
   }
   
-  /** Hack for later:
-    * Because redraw is lazily evaluated when added to a template, pass in the parent at that time.
-    * Also pass in the previous element or an indicator that this is the first element.
-    * And then either insert or append afterwards.
-    *
-    * Must also keep a list of elements drawn, that can then be removed when a redraw is required.
+  /**
+    * Render takes a template name, a parent object, and a property of that object to use as a context.
+    * If property is absent, the parent object is used as the data context.
     **/
   Layout.Render = function (template, parent, property) {
     var renderID = Eventful.newID();
@@ -749,7 +746,7 @@ Eventful.Layout = (function () {
       }
       
       // Get the new data context, and wrap into an array for ease of iteration.
-      data = parent.get(property);
+      data = property ? parent.get(property) : parent;
       if (!(data instanceof Array)) {
         data = [data];
       } else {
@@ -776,8 +773,10 @@ Eventful.Layout = (function () {
       // Restore the context.
       context = oldContext;
     }
-    // Bind the redraw to changes to our data context.
-    parent.bindCallback(property + "Changed", redraw, renderID);
+    if (property) {
+      // Bind the redraw to changes to our data context.
+      parent.bindCallback(property + "Changed", redraw, renderID);
+    }
     
     return redraw;
   }
