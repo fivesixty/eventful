@@ -1,5 +1,7 @@
 "use strict";
-var console = console || {log:function(m){ /** alert(m); */ }};
+if (console === undefined) {
+  var console = {log:function(m){ /** alert(m); */ }};
+}
 
 var Eventful = {};
 
@@ -27,9 +29,9 @@ Eventful.Ploop = (function () {
     * recursion limit through window defined objects, which postMessage is.
     **/
     
-  var eventTrigger = window['addEventListener'] && window['postMessage'] ? "event" : "timeout";
+  var eventTrigger = window['addEventListener'] && window['postMessage'];
   
-  var queue = [], front = 0, back = 0, messageName = "#A";
+  var queue = {}, front = 0, back = 0, messageName = "#A";
     
   function handleMessage(event) {
     if (event && !(event.source.UID === window.UID && event.data === messageName)) {
@@ -44,20 +46,27 @@ Eventful.Ploop = (function () {
     }
     
     if (back > 0) {
-      timeouts[front][1].apply(timeouts[front][0], timeouts[front][2]);
+      queue[timeouts[front]][1].apply(queue[timeouts[front]][0], queue[timeouts[front]][2]);
+      delete timeouts[front];
       front += 1;
       if (front === back) {
         timeouts = [];
+        queue = {};
         front = back = 0;
         console.log("Event queue cleared.");
       }
     }
   }
-    
-  Ploop.async = function (scope, fn, args) {
-    timeouts[back] = [scope, fn, args];
-    back += 1;
-    eventTrigger ? window.postMessage(messageName, "*") : setTimeout(handleMessage, 0);
+  
+  Ploop.async = function (scope, fn, event, identifier) {
+    if (queue[identifier] === undefined) {
+      queue[identifier] = [scope, fn, [scope, event]];
+      timeouts[back] = identifier;
+      back += 1;
+      eventTrigger ? window.postMessage(messageName, "*") : setTimeout(handleMessage, 0);
+    } else {
+      queue[identifier][2].push(event);
+    }
   };
     
   if (eventTrigger) {
@@ -259,9 +268,12 @@ Eventful.Mixin = function (target) {
       for (var i = 0, len = eventListeners.length; i < len; i += 1) {
         Eventful.doAsync(this, eventListeners[i], [this, e]);
       } **/
-      for (var i in eventListeners) {
-        for (var j in eventListeners[i]) {
-          Eventful.Ploop.async(this, eventListeners[i][j], [this, e]);
+      
+      for (var callerID in eventListeners) {
+        if (eventListeners.hasOwnProperty(callerID)) {
+          for (var i = 0, len = eventListeners[callerID].length; i < len; i++) {
+            Eventful.Ploop.async(this, eventListeners[callerID][i], e, this.getID() + eventName + callerID + i);
+          }
         }
       }
     }
@@ -288,7 +300,7 @@ Eventful.Mixin = function (target) {
   return target;
 };
 
-Eventful.enableBubbling = false;
+Eventful.enableBubbling = true;
 
 /**
   * Simple EventedObject.
@@ -402,7 +414,8 @@ Eventful.Object = (function () {
       }
       var $this = this;
       value.bindCallback(eventName, function (sender, e) {
-        $this.triggerChange(prop, true);
+        // Don't treat direct element changes as bubbled events.
+        $this.triggerChange(prop, eventName === "elementChanged" ? e.bubbled : true);
       }, $this.getID());
     }
     
