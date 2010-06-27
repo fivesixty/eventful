@@ -17,10 +17,10 @@ Eventful.newID = (function () {
 
 Eventful.enableBubbling = true;
 
-//= require "Object"
-//= require "Array"
 //= require "Model"
+//= require "Array"
 //= require "Layout"
+//= require "Tween"
 
 Function.prototype.dependsOn = function () {
   this.propertyDependencies = [];

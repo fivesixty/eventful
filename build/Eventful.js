@@ -5616,20 +5616,13 @@ Eventful.enableBubbling = true;
 
 Eventful.Ploop = (function () {
 
-  var Ploop = {}, timeouts = [];
 
-  window.UID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
-    return v.toString(16);
-  }).toUpperCase();
-
-
-  var eventTrigger = window['addEventListener'] && window['postMessage'];
-
-  var queue = {}, front = 0, back = 0, messageName = "#A";
+  var Ploop = {}, queue = [],
+      eventTrigger = window['addEventListener'] && window['postMessage'],
+      timeouts = {}, front = 0, back = 0, messageName = "#A";
 
   function handleMessage(event) {
-    if (event && !(event.source.UID === window.UID && event.data === messageName)) {
+    if (event && !(event.source.evtfulUID === window.evtfulUID && event.data === messageName)) {
       return;
     }
     if (event) {
@@ -5641,12 +5634,12 @@ Eventful.Ploop = (function () {
     }
 
     if (back > 0) {
-      queue[timeouts[front]][1].apply(queue[timeouts[front]][0], queue[timeouts[front]][2]);
-      delete timeouts[front];
+      timeouts[queue[front]][1].apply(timeouts[queue[front]][0], timeouts[queue[front]][2]);
+      delete queue[front];
       front += 1;
       if (front === back) {
-        timeouts = [];
-        queue = {};
+        queue = [];
+        timeouts = {};
         front = back = 0;
         console.log("Event queue cleared.");
       }
@@ -5654,17 +5647,23 @@ Eventful.Ploop = (function () {
   }
 
   Ploop.async = function (scope, fn, event, identifier) {
-    if (queue[identifier] === undefined) {
-      queue[identifier] = [scope, fn, [scope, event]];
-      timeouts[back] = identifier;
+    identifier = identifier || Eventful.newID();
+    if (timeouts[identifier] === undefined) {
+      timeouts[identifier] = [scope, fn, [scope, event]];
+      queue[back] = identifier;
       back += 1;
       eventTrigger ? window.postMessage(messageName, "*") : setTimeout(handleMessage, 0);
     } else {
-      queue[identifier][2].push(event);
+      timeouts[identifier][2].push(event);
     }
   };
 
   if (eventTrigger) {
+    window.evtfulUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+      return v.toString(16);
+    }).toUpperCase();
+
     if (window['addEventListener']) {
       window.addEventListener("message", handleMessage, true);
     } else {
@@ -5695,7 +5694,7 @@ Eventful.Ploop = (function () {
         delay = i;
       }
     }
-  }
+  };
 
   return Ploop;
 
@@ -5883,6 +5882,31 @@ Eventful.Object = (function () {
   return EventedObjectObject;
 }());
 
+Eventful.Model = (function() {
+
+  return function (constructor, properties) {
+    constructor = constructor || [];
+    properties = properties || {};
+
+    function Model() {
+      if (properties.init) {
+        for (var p in properties.init) {
+          if (properties.init.hasOwnProperty(p)) {
+            this.set(p, new properties.init[p]());
+          }
+        }
+      }
+      for (var i = 0, len = constructor.length; i < len; i++) {
+        this.set(constructor[i], arguments[i]);
+      }
+    }
+    Model.prototype = new Eventful.Object(properties.calc || {});
+
+    return Model;
+  };
+
+}());
+
 Eventful.Array = (function() {
 
   var EventedArrayObject = function () { this._length = 0; this.push.apply(this, arguments); },
@@ -5953,31 +5977,6 @@ Eventful.Array = (function() {
   };
 
   return EventedArrayObject;
-}());
-
-Eventful.Model = (function() {
-
-  return function (constructor, properties) {
-    constructor = constructor || [];
-    properties = properties || {};
-
-    function Model() {
-      if (properties.init) {
-        for (var p in properties.init) {
-          if (properties.init.hasOwnProperty(p)) {
-            this.set(p, new properties.init[p]());
-          }
-        }
-      }
-      for (var i = 0, len = constructor.length; i < len; i++) {
-        this.set(constructor[i], arguments[i]);
-      }
-    }
-    Model.prototype = new Eventful.Object(properties.calc || {});
-
-    return Model;
-  };
-
 }());
 Eventful.Layout = (function () {
 
@@ -6182,6 +6181,71 @@ Eventful.Layout = (function () {
   }
   Layout.tag = tag;
   return Layout;
+}());
+
+Eventful.Tween = (function () {
+
+  var animations = {};
+
+  Eventful.Ploop.every(20, function () {
+    var d = new Date();
+    var thisTick = d.getTime();
+
+    for (var a in animations) {
+      var anim = animations[a];
+      if (thisTick > (anim.start + anim.end)) {
+        delete animations[a];
+        anim.assign(anim.to);
+        if (anim.callback !== undefined) {
+          anim.callback();
+        }
+      } else {
+        anim.assign(Tween[anim.interpolation](anim.from, anim.to, (thisTick - anim.start) / anim.end));
+      }
+    }
+  });
+
+  Tween = function (identifier, object, variable, from, to, time, method, callback) {
+    var d = new Date();
+    var thisTick = d.getTime();
+
+    var t = {
+      assign: object.isEventable ?
+        function (value) {
+          object.set(variable, value);
+        } : typeof object[variable] === "function" ?
+        function (value) {
+          object[variable](value);
+        } :
+        function (value) {
+          object[variable] = value;
+        },
+      start: thisTick,
+      end: time,
+      from: from,
+      to: to,
+      interpolation: method === undefined ? "linear" : method,
+      callback: callback
+    };
+
+    animations[identifier] = t;
+  };
+
+  Tween.linear = function (from, to, t) {
+    return (t * (to-from)) + from;
+  };
+
+  Tween.quadratic = function (from, to, t) {
+    return (t*t * (to-from)) + from;
+  };
+
+  Tween.invQuadratic = function (from, to, t) {
+    var u = 1-t;
+    return Tween.quadratic(to, from, u);
+  }
+
+  return Tween;
+
 }());
 
 Function.prototype.dependsOn = function () {
