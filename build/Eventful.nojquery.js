@@ -498,7 +498,7 @@ Eventful.Layout = (function () {
       "dl", "dt", "dd",
       "h1", "h2", "h3", "h4", "h5", "h6", "h7",
       "form", "input", "label",
-      "tt", "i", "b", "big", "small",
+      "tt", "i", "b", "big", "small", "pre",
       "em", "strong", "dfn", "code", "samp", "kbd", "var", "cite"
     ];
   for (var i = 0, len = tags.length; i < len; i++) {
@@ -512,12 +512,27 @@ Eventful.Layout = (function () {
 
   var templates = {};
 
+  function scopeTags(str) {
+    var count;
+    do {
+      count = 0;
+      str = str.replace(/([^\.a-z|^][a-z0-9]+)\(/ig, function (match, token) {
+        if (tagFuncs[token.substring(1)] === undefined) {
+          return match;
+        } else {
+          count++;
+          return (token.substring(0, 1) + "tagFuncs." + token.substring(1) + "(");
+        }
+      });
+    } while (count > 0);
+    return str;
+  }
+
   Layout.Template = function (name, gen) {
     var fnStr = gen.toString();
-    fnStr = fnStr.replace(/([^\.][a-z0-9]+)\(/ig, function (match, token) {
-      return tagFuncs[token.substring(1)] ? (token.substring(0, 1) + "tagFuncs." + token.substring(1) + "(") : match;
-    });
+    fnStr = scopeTags(fnStr);
     fnStr = "return (" + fnStr + "(context));";
+    console.log(fnStr);
     templates[name] = new Function("context", "tagFuncs", fnStr);
   }
 
@@ -528,6 +543,8 @@ Eventful.Layout = (function () {
     var data, elements = [];
 
     var redraw = function (sender, e) {
+      console.log("Template '" + template + "' redrawn.");
+
       if (e !== undefined && e.bubbled === true) {
         return;
       }
