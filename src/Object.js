@@ -103,7 +103,7 @@ Eventful.Object = (function () {
       * Enable event bubbling.
       **/
     if (Eventful.enableBubbling && value.isEventable) {
-      if (value.constructor === Array) {
+      if (value.EventfulArray) {
         var eventName = "elementChanged";
       } else if (value.constructor === Object) {
         var eventName = "propertyChanged";

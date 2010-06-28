@@ -42,9 +42,18 @@ Eventful.Array = (function() {
     }
   };
   
+  EventedArray.pop = function () {
+    var el = this.intArray.pop();
+    if (el.removeCallbacks !== undefined) {
+      el.removeCallbacks(this.getID());
+    }
+    this.triggerEvent("elementChanged", {state: "delete", index: this.intArray.length, value: el});
+    return el;
+  }
+  
   EventedArray.set = function (index, value) {
     var state = this[index] === undefined ? "new" : "update";
-    if (state == "update" && this[index].removeCallbacks !== undefined) {
+    if (state == "update" && this.intArray[index].removeCallbacks !== undefined) {
       this.intArray[index].removeCallbacks(this.getID());
     }
     this.intArray[index] = value;
@@ -52,23 +61,21 @@ Eventful.Array = (function() {
     this.triggerEvent("elementChanged", {state: state, index: index, value: value});
   };
   
-  /** BROKEN? **/
   EventedArray.splice = function () {
     for (var i = 0; i < arguments[1]; i += 1) {
-      if (this[arguments[0] + i].removeCallbacks !== undefined) {
-        this[arguments[0] + i].removeCallbacks();
+      if (this.intArray[arguments[0] + i].removeCallbacks !== undefined) {
+        this.intArray[arguments[0] + i].removeCallbacks();
       }
       this.triggerEvent("elementChanged", {state: "delete", index: arguments[0] + i, value: this[arguments[0] + i]});
     }
     
-    Array.prototype.splice.apply(intArray, arguments);
+    Array.prototype.splice.apply(this.intArray, arguments);
     
     this.subscribeEvents(Array.prototype.slice.call(arguments, 2));
     for (i = 2, len = arguments.length; i < len; i += 1) {
       this.triggerEvent("elementChanged", {state:"new", index: arguments[0] + i, value:arguments[i]});
     }
   };
-  /** **/
   
   EventedArray.each = function (callback) {
     this.intArray.each(callback);
