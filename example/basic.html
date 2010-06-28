@@ -1,5 +1,6 @@
 <html>
   <head>
+    <script type="text/javascript" src="../src/vendor/jquery/jquery.js"></script>
     <script type="text/javascript" src="../build/Eventful.js"></script>
   </head>
   <body>
@@ -9,7 +10,7 @@
       var Item = Eventful.Model(["title", "text"]);
       
       // Template definition.
-      Eventful.Layout.Template("itemTemplate", function () {
+      Eventful.Layout("itemTemplate", function () {
         return div({"class":"item"},
           div(
             h2("{{title}}"),
@@ -21,7 +22,7 @@
       
       // Instantiate a model, and Render it to div#item.
       var pageitem = new Item("Content Title", "A basic example showing Models, Templates, Rendering, and state modification.");
-      Eventful.Layout.Render("itemTemplate", pageitem) ($("#item"));
+      pageitem.render("itemTemplate") ($("#item"));
 
       // Bind a click handler.
       $("#item a").live("click", function(e) {
