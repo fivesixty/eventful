@@ -276,15 +276,15 @@ Eventful.Array = (function() {
   };
   EventedArray.toArray = function () {
     return this.intArray;
-  }
+  };
 
-  for (var p in Array.prototype) {
+  ["join", "slice"].each(function (p) {
     if (EventedArray[p] === undefined && typeof Array.prototype[p] === "function") {
       EventedArray[p] = function () {
         return Array.prototype[p].apply(this.intArray, arguments);
       }
     }
-  }
+  });
 
   EventedArray.EventfulArray = true;
 

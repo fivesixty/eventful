@@ -1,0 +1,53 @@
+<html>
+  <head>
+    <script type="text/javascript" src="../src/vendor/jquery/jquery.js"></script>
+    <script type="text/javascript" src="../build/Eventful.js"></script>
+  </head>
+  <body>
+    <div id="post"></div>
+    <script type="text/javascript">
+      // Create a Model that takes title and text in the constructor.
+      var Post = Eventful.Model(["title", "text", "author"],
+        {
+          init: {
+            tags: Eventful.Array
+          },
+          calc: {
+            tagString: function () {
+              return this.get("tags").join(", ");
+            }.dependsOn("tags").cacheable(),
+            
+            addTag: function (value) {
+              this.get("tags").push(value);
+            }
+          }
+        }
+      );
+      
+      // Template definition.
+      Eventful.Layout("postTemplate", function () {
+        return div({"class":"post"},
+          div(
+            h2("{{title}}"),
+            h3("By {{author}}"),
+            p("Tags: {{tagString}}"),
+            p("{{text}}"),
+            a({href: "#"}, "Click me to add a tag.")
+          )
+        );
+      });
+      
+      // Instantiate a model, and Render it to div#post.
+      var blogpost = new Post("A Blog Post!", "A glorious post demonstrating my expertise with the English language.", "Chris Spencer");
+      blogpost.addTag("properties");
+      blogpost.addTag("narcissism");
+      blogpost.render("postTemplate") ($("#post"));
+
+      // Bind a click handler.
+      $("#post a").live("click", function(e) {
+        e.preventDefault();
+        blogpost.addTag("New Tag!");
+      });
+    </script>
+  </body>
+</html>
