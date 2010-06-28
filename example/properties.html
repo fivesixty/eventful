@@ -6,17 +6,31 @@
   <body>
     <div id="post"></div>
     <script type="text/javascript">
-      // Create a Model that takes title and text in the constructor.
+      // Create a Model that takes title, text, and author in the constructor.
       var Post = Eventful.Model(["title", "text", "author"],
         {
+          // Member properties that should be initialised on construction.
           init: {
             tags: Eventful.Array
           },
+          // Member methods
           calc: {
+            // A simple calculated property
             tagString: function () {
               return this.get("tags").join(", ");
             }.dependsOn("tags").cacheable(),
             
+            // A settable calculated property
+            author: function (value) {
+              if (value) {
+                var namesplit = value.split(" ");
+                this.set("firstname", namesplit.shift());
+                this.set("lastname", namesplit.join(" "));
+              }
+              return this.get("firstname") + " " + this.get("lastname");
+            }.dependsOn("firstname", "lastname"),
+            
+            // A helper method
             addTag: function (value) {
               this.get("tags").push(value);
             }
@@ -29,7 +43,7 @@
         return div({"class":"post"},
           div(
             h2("{{title}}"),
-            h3("By {{author}}"),
+            h3("By {{firstname}} ({{author}})"),
             p("Tags: {{tagString}}"),
             p("{{text}}"),
             a({href: "#"}, "Click me to add a tag.")
@@ -37,13 +51,21 @@
         );
       });
       
-      // Instantiate a model, and Render it to div#post.
-      var blogpost = new Post("A Blog Post!", "A glorious post demonstrating my expertise with the English language.", "Chris Spencer");
+      // Instantiate a Post
+      var blogpost = new Post(
+        "A Blog Post!",
+        "A glorious post demonstrating my expertise with the English language.",
+        "Chris Spencer"
+      );
+      
+      // Add some tags
       blogpost.addTag("properties");
       blogpost.addTag("narcissism");
+      
+      // Render to div#post
       blogpost.render("postTemplate") ($("#post"));
 
-      // Bind a click handler.
+      // Bind a click handler to add tags
       $("#post a").live("click", function(e) {
         e.preventDefault();
         blogpost.addTag("New Tag!");
