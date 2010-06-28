@@ -1,6 +1,7 @@
+//= require "Object"
+
 Eventful.Layout = (function () {
   
-  var Layout = {};
   var context = {};
   var pattern = /{{(.*?)}}/g;
   
@@ -174,7 +175,7 @@ Eventful.Layout = (function () {
   /**
     * Bind the template function to be called with the context.
     **/
-  Layout.Template = function (name, gen) {
+  var Layout = function (name, gen) {
     var fnStr = gen.toString();
     fnStr = scopeTags(fnStr);
     fnStr = "return (" + fnStr + "(context));";
@@ -185,12 +186,13 @@ Eventful.Layout = (function () {
     * Render takes a template name, a parent object, and a property of that object to use as a context.
     * If property is absent, the parent object is used as the data context.
     **/
-  Layout.Render = function (template, parent, property) {
+  Eventful.Object.prototype.render = function (template, property) {
     var renderID = Eventful.newID();
     
     // el is the start marker tag in the DOM so we know where to insert to.
     var el = $('<div style="display: none;">');
     var data, elements = [];
+    var parent = this;
     
     var redraw = function (sender, e) {
       
@@ -255,13 +257,6 @@ Eventful.Layout = (function () {
     
     return redraw;
   }
-
-  Layout.Draw = function (selector) {
-    var el = $(selector).empty();
-    for (var i = 1, len = arguments.length; i < len; i++) {
-      arguments[i](el);
-    }
-  }
-  Layout.tag = tag;
+  
   return Layout;
 }());

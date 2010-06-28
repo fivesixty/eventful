@@ -290,9 +290,109 @@ Eventful.Array = (function() {
 
   return EventedArrayObject;
 }());
+
+Eventful.Object = (function () {
+  var EventedObjectObject = function (init) {
+      if (init !== undefined) {
+        for (var prop in init) {
+          if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
+        }
+      }
+    },
+    EventedObject = EventedObjectObject.prototype = Eventful.Mixin();
+
+  EventedObject.calculatedProperty = function (property, valueFunction, dependencies) {
+    if (this.valueDependencies === undefined) {
+      this.valueDependencies = {};
+    }
+    this[property] = valueFunction;
+    if (dependencies !== undefined) {
+      for (var i = 0, len = dependencies.length; i < len; i += 1) {
+        if (this.valueDependencies[dependencies[i]] === undefined) {
+          this.valueDependencies[dependencies[i]] = [];
+        }
+        this.valueDependencies[dependencies[i]].push(property);
+      }
+    }
+  }
+
+  EventedObject.triggerChange = function (property, bubbled) {
+    if (this.cache && this.cache[property]) {
+      delete this.cache[property];
+    }
+
+    this.triggerEvent(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
+    this.triggerEvent("propertyChanged", {property: property, bubbled: bubbled ? true:false});
+    if (this.valueDependencies && this.valueDependencies[property]) {
+      for (var i = 0; i < this.valueDependencies[property].length; i += 1) {
+        this.triggerChange(this.valueDependencies[property][i], bubbled);
+      }
+    }
+  };
+
+
+  EventedObject.get = function (prop) {
+    if (typeof this[prop] === "function") {
+      if (this[prop].cacheableProperty) {
+        if (this.cache === undefined) {
+          this.cache = [];
+        }
+        if (this.cache[prop] === undefined) {
+          this.cache[prop] = this[prop]();
+        }
+        return this.cache[prop];
+      }
+      return this[prop]();
+    } else {
+      return this[prop];
+    }
+  };
+
+  EventedObject.set = function (prop, value) {
+    if (this[prop] !== undefined && this[prop].removeCallbacks !== undefined) {
+      this[prop].removeCallbacks(this.getID());
+    }
+
+    if (typeof value === "function") {
+      this.calculatedProperty(prop, value, value.propertyDependencies);
+    } else {
+      if (typeof(this[prop]) === "function") {
+        this[prop](value);
+      } else {
+        this[prop] = value;
+      }
+    }
+
+    if (Eventful.enableBubbling && value.isEventable) {
+      if (value.EventfulArray) {
+        var eventName = "elementChanged";
+      } else if (value.constructor === Object) {
+        var eventName = "propertyChanged";
+      } else {
+        return;
+      }
+      var $this = this;
+      value.bindCallback(eventName, function (sender, e) {
+        $this.triggerChange(prop, eventName === "elementChanged" ? e.bubbled : true);
+      }, $this.getID());
+    }
+
+    this.triggerChange(prop);
+  };
+
+
+  EventedObject.bindValue = function (property, remoteObject, propertyName) {
+    this.set(property, remoteObject.get(propertyName));
+    this.bindListener(function(sender, e) {
+      this.set(property, e.value);
+    }, remoteObject, propertyName + "Changed");
+  };
+
+  return EventedObjectObject;
+}());
+
 Eventful.Layout = (function () {
 
-  var Layout = {};
   var context = {};
   var pattern = /{{(.*?)}}/g;
 
@@ -440,18 +540,19 @@ Eventful.Layout = (function () {
     return str;
   }
 
-  Layout.Template = function (name, gen) {
+  var Layout = function (name, gen) {
     var fnStr = gen.toString();
     fnStr = scopeTags(fnStr);
     fnStr = "return (" + fnStr + "(context));";
     templates[name] = new Function("context", "tagFuncs", fnStr);
   }
 
-  Layout.Render = function (template, parent, property) {
+  Eventful.Object.prototype.render = function (template, property) {
     var renderID = Eventful.newID();
 
     var el = $('<div style="display: none;">');
     var data, elements = [];
+    var parent = this;
 
     var redraw = function (sender, e) {
 
@@ -503,114 +604,7 @@ Eventful.Layout = (function () {
     return redraw;
   }
 
-  Layout.Draw = function (selector) {
-    var el = $(selector).empty();
-    for (var i = 1, len = arguments.length; i < len; i++) {
-      arguments[i](el);
-    }
-  }
-  Layout.tag = tag;
   return Layout;
-}());
-
-Eventful.Object = (function () {
-  var EventedObjectObject = function (init) {
-      if (init !== undefined) {
-        for (var prop in init) {
-          if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
-        }
-      }
-    },
-    EventedObject = EventedObjectObject.prototype = Eventful.Mixin();
-
-  EventedObject.calculatedProperty = function (property, valueFunction, dependencies) {
-    if (this.valueDependencies === undefined) {
-      this.valueDependencies = {};
-    }
-    this[property] = valueFunction;
-    if (dependencies !== undefined) {
-      for (var i = 0, len = dependencies.length; i < len; i += 1) {
-        if (this.valueDependencies[dependencies[i]] === undefined) {
-          this.valueDependencies[dependencies[i]] = [];
-        }
-        this.valueDependencies[dependencies[i]].push(property);
-      }
-    }
-  }
-
-  EventedObject.triggerChange = function (property, bubbled) {
-    if (this.cache && this.cache[property]) {
-      delete this.cache[property];
-    }
-
-    this.triggerEvent(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
-    this.triggerEvent("propertyChanged", {property: property, bubbled: bubbled ? true:false});
-    if (this.valueDependencies && this.valueDependencies[property]) {
-      for (var i = 0; i < this.valueDependencies[property].length; i += 1) {
-        this.triggerChange(this.valueDependencies[property][i], bubbled);
-      }
-    }
-  };
-
-
-  EventedObject.get = function (prop) {
-    if (typeof this[prop] === "function") {
-      if (this[prop].cacheableProperty) {
-        if (this.cache === undefined) {
-          this.cache = [];
-        }
-        if (this.cache[prop] === undefined) {
-          this.cache[prop] = this[prop]();
-        }
-        return this.cache[prop];
-      }
-      return this[prop]();
-    } else {
-      return this[prop];
-    }
-  };
-
-  EventedObject.set = function (prop, value) {
-    if (this[prop] !== undefined && this[prop].removeCallbacks !== undefined) {
-      this[prop].removeCallbacks(this.getID());
-    }
-
-    if (typeof value === "function") {
-      this.calculatedProperty(prop, value, value.propertyDependencies);
-    } else {
-      if (typeof(this[prop]) === "function") {
-        this[prop](value);
-      } else {
-        this[prop] = value;
-      }
-    }
-
-    if (Eventful.enableBubbling && value.isEventable) {
-      if (value.EventfulArray) {
-        var eventName = "elementChanged";
-      } else if (value.constructor === Object) {
-        var eventName = "propertyChanged";
-      } else {
-        return;
-      }
-      var $this = this;
-      value.bindCallback(eventName, function (sender, e) {
-        $this.triggerChange(prop, eventName === "elementChanged" ? e.bubbled : true);
-      }, $this.getID());
-    }
-
-    this.triggerChange(prop);
-  };
-
-
-  EventedObject.bindValue = function (property, remoteObject, propertyName) {
-    this.set(property, remoteObject.get(propertyName));
-    this.bindListener(function(sender, e) {
-      this.set(property, e.value);
-    }, remoteObject, propertyName + "Changed");
-  };
-
-  return EventedObjectObject;
 }());
 
 Eventful.Model = (function() {
