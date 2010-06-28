@@ -1,25 +1,55 @@
 require :rubygems
 require :Sprockets
-require 'closure-compiler'
+require :optparse
 
-EVT = 'build/Eventful.js'
-EVTNJ = 'build/Eventful.nojquery.js'
-MINFILE = 'build/Eventful.min.js'
+options = {
+  :bundle_jquery => false,
+  :minify        => false,
+  :filename      => 'build/Eventful.js',
+  :comments      => false,
+  :sources       => ["src/Base.js"]
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: build.rb [options] filename"
+  
+  opts.on("-m", "--minify", "Minify Output") do |m|
+    options[:minify] = m
+  end
+  
+  opts.on("-j", "--jquery", "Bundle jQuery") do |jq|
+    options[:bundle_jquery] = jq
+  end
+  
+  opts.on("-c", "--comments", "Preserve Comments") do |c|
+    options[:comments] = c
+  end
+  
+  opts.on('-h', '--help', 'Command Help' ) do
+    puts opts
+    exit
+  end
+end.parse!
+
+if !ARGV[0].nil?
+  options[:filename] = ARGV[0]
+end
+
+if options[:bundle_jquery]
+  options[:sources].unshift "src/vendor/jquery/jquery.js"
+end
 
 concatenation = Sprockets::Secretary.new(
   :load_path    => ["src"],
-  :source_files => ["src/vendor/jquery/jquery.js", "src/Base.js"],
-  :strip_comments => true
+  :source_files => options[:sources],
+  :strip_comments => !options[:comments]
 ).concatenation
 
-# Write the concatenation to disk
-concatenation.save_to(EVT)
-# Produce minified
-File.open(MINFILE, 'w') { |file| file.write(Closure::Compiler.new(:compilation_level => 'SIMPLE_OPTIMIZATIONS').compile(concatenation.to_s)) }
+if options[:minify]
+  require 'closure-compiler'
+  File.open(options[:filename], 'w') { |file| file.write(Closure::Compiler.new(:compilation_level => 'SIMPLE_OPTIMIZATIONS').compile(concatenation.to_s)) }
+else
+  concatenation.save_to options[:filename]
+end
 
-# Save version without jquery bundled.
-Sprockets::Secretary.new(
-  :load_path    => ["src"],
-  :source_files => ["src/Base.js"],
-  :strip_comments => true
-).concatenation.save_to(EVTNJ)
+puts "Built: " + options[:filename]

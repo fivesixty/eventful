@@ -8,17 +8,22 @@ Also supported are calculated properties, which have dependencies and emit event
 
 ## Build
 
-Uses Sprockets and closure compiler to build, which can be installed using:
+Requires Sprockets to build, and closure-compiler for minification.
 
-    gem install sprockets closure-compiler
+    > gem install sprockets closure-compiler
+    [ ... ]
     
-This generates 3 files.
+    > ruby build.rb
+    Written to build/Eventful.js
+    
+    > ruby build.rb
+    Usage: build.rb [options] filename
+      -m, --minify                     Minify Output
+      -j, --jquery                     Bundle jQuery
+      -c, --comments                   Preserve Comments
+      -h, --help                       Command Help
 
-    build/Eventful.js
-    build/Eventful.nojquery.js
-    build/Eventful.min.js
-
-The standard Eventful.js bundles in the jquery requirement. Eventful.min is minified using the closure compiler on SIMPLE, and does not bundle jquery.
+Minification is currently SIMPLE closure compilation. jQuery is version 1.4.2
 
 ## Future work
 
