@@ -9,10 +9,8 @@
   **/
 Eventful.Array = (function() {
   
-  var EventedArrayObject = function () { this._length = 0; this.push.apply(this, arguments); },
-      EventedArray = EventedArrayObject.prototype = Eventful.Mixin(new Array());
-      
-  var brokenLength = (new EventedArrayObject(1).length == 0);
+  var EventedArrayObject = function () { this.intArray = []; this.push.apply(this, arguments); },
+      EventedArray = EventedArrayObject.prototype = Eventful.Mixin({});
   
   /**
     * Wrapper to simplify subscribing to elements for bubbling events.
@@ -34,25 +32,23 @@ Eventful.Array = (function() {
       }
     }
   };
+  
   EventedArray.push = function () {
-    var pLength = this._length;
-    for (var i = 0, len = arguments.length; i < len; i++) {
-      this[this._length++] = arguments[i];
-    }
+    var pLength = this.intArray.length;
+    Array.prototype.push.apply(this.intArray, arguments);
     this.subscribeEvents(arguments);
-    for (var i = pLength; i < this._length; i++) {
+    for (var i = pLength; i < this.intArray.length; i++) {
       this.triggerEvent("elementChanged", {state:"new", index:i, value:this[i]});
     }
   };
+  
   EventedArray.set = function (index, value) {
     var state = this[index] === undefined ? "new" : "update";
     if (state == "update" && this[index].removeCallbacks !== undefined) {
-      this[index].removeCallbacks(this.getID());
+      this.intArray[index].removeCallbacks(this.getID());
     }
-    this[index] = value;
-    if ((index+1) > this._length) {
-      this._length = index+1;
-    }
+    this.intArray[index] = value;
+    this.subscribeEvents([value]);
     this.triggerEvent("elementChanged", {state: state, index: index, value: value});
   };
   
@@ -64,7 +60,9 @@ Eventful.Array = (function() {
       }
       this.triggerEvent("elementChanged", {state: "delete", index: arguments[0] + i, value: this[arguments[0] + i]});
     }
-    Array.prototype.splice.apply(this, arguments);
+    
+    Array.prototype.splice.apply(intArray, arguments);
+    
     this.subscribeEvents(Array.prototype.slice.call(arguments, 2));
     for (i = 2, len = arguments.length; i < len; i += 1) {
       this.triggerEvent("elementChanged", {state:"new", index: arguments[0] + i, value:arguments[i]});
@@ -73,13 +71,24 @@ Eventful.Array = (function() {
   /** **/
   
   EventedArray.each = function (callback) {
-    for (var i = 0, len = this._length; i < len; i += 1) {
-      callback(this[i]);
-    }
+    this.intArray.each(callback);
   };
   EventedArray.toString = function () {
     return "[" + this.join(',') + "]";
   };
+  EventedArray.toArray = function () {
+    return this.intArray;
+  }
+  
+  for (var p in Array.prototype) {
+    if (EventedArray[p] === undefined && typeof Array.prototype[p] === "function") {  
+      EventedArray[p] = function () {
+        return Array.prototype[p].apply(this.intArray, arguments);
+      }
+    }
+  }
+  
+  EventedArray.EventfulArray = true;
   
   return EventedArrayObject;
 }());

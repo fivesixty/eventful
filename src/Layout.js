@@ -29,7 +29,7 @@ Eventful.Layout = (function () {
 
   function tag(tagName, attrs) {
     
-    if (attrs instanceof Array || typeof attrs !== "object" || (attrs instanceof jQuery)) {
+    if (attrs instanceof Array || typeof attrs !== "object" || (attrs instanceof jQuery) || attrs.EventfulArray) {
       var offset = 1, id;
     } else {
       var offset = 2, id = attrs.id;
@@ -178,7 +178,6 @@ Eventful.Layout = (function () {
     var fnStr = gen.toString();
     fnStr = scopeTags(fnStr);
     fnStr = "return (" + fnStr + "(context));";
-    console.log(fnStr);
     templates[name] = new Function("context", "tagFuncs", fnStr);
   }
   
@@ -194,7 +193,6 @@ Eventful.Layout = (function () {
     var data, elements = [];
     
     var redraw = function (sender, e) {
-      console.log("Template '" + template + "' redrawn.");
       
       // Don't redraw on bubbled changes (tag bindings update from these).
       if (e !== undefined && e.bubbled === true) {
@@ -226,7 +224,7 @@ Eventful.Layout = (function () {
       
       // Get the new data context, and wrap into an array for ease of iteration.
       data = property ? parent.get(property) : parent;
-      if (!(data instanceof Array)) {
+      if (!(data instanceof Array) && !data.EventfulArray) {
         data = [data];
       } else {
         // If it's an eventful array, bind redraw to changes in elements.
