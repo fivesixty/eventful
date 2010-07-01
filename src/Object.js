@@ -92,6 +92,9 @@
     }
     
     if (typeof value === "function") {
+      if (this.cache && this.cache[prop] !== undefined) {
+        delete this.cache[prop];
+      }
       this.calculatedProperty(prop, value, value.propertyDependencies);
     } else {
       if (typeof(this[prop]) === "function") {
