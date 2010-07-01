@@ -11,18 +11,20 @@
   * Events: propertyChanged: {property}
   *         [property]Changed: {value}
   **/
-Eventful.Object = (function () {
+(function (Eventful) {
   /**
     * Constructor and prototype.
     **/
-  var EventedObjectObject = function (init) { 
-      if (init !== undefined) {
-        for (var prop in init) {
-          if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
-        }
+    
+  Eventful.Object = function EventfulObject(init) {
+    if (init !== undefined) {
+      for (var prop in init) {
+        if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
       }
-    },
-    EventedObject = EventedObjectObject.prototype = Eventful.Mixin();
+    }
+  };
+  
+  var EventedObject = Eventful.Object.prototype = Eventful.Mixin();
   
   /**
     * Support for adding dependent calculated properties.
@@ -131,5 +133,4 @@ Eventful.Object = (function () {
     }, remoteObject, propertyName + "Changed");
   };
   
-  return EventedObjectObject;
-}());
+}(Eventful));

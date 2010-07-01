@@ -291,15 +291,17 @@ Eventful.Array = (function() {
   return EventedArrayObject;
 }());
 
-Eventful.Object = (function () {
-  var EventedObjectObject = function (init) {
-      if (init !== undefined) {
-        for (var prop in init) {
-          if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
-        }
+(function (Eventful) {
+
+  Eventful.Object = function EventfulObject(init) {
+    if (init !== undefined) {
+      for (var prop in init) {
+        if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
       }
-    },
-    EventedObject = EventedObjectObject.prototype = Eventful.Mixin();
+    }
+  };
+
+  var EventedObject = Eventful.Object.prototype = Eventful.Mixin();
 
   EventedObject.calculatedProperty = function (property, valueFunction, dependencies) {
     if (this.valueDependencies === undefined) {
@@ -388,8 +390,7 @@ Eventful.Object = (function () {
     }, remoteObject, propertyName + "Changed");
   };
 
-  return EventedObjectObject;
-}());
+}(Eventful));
 
 Eventful.Layout = (function () {
 
