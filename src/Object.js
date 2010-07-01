@@ -24,7 +24,7 @@
     }
   };
   
-  var EventedObject = Eventful.Object.prototype = Eventful.Mixin();
+  var EventedObject = Eventful.Object.prototype = Eventful.Mixin({EventfulObject: true});
   
   /**
     * Support for adding dependent calculated properties.
@@ -49,7 +49,7 @@
     * Wrapper for triggering a change of a property, triggering dependencies too.
     **/
   EventedObject.triggerChange = function (property, bubbled) {
-    if (this.cache && this.cache[property]) {
+    if (this.cache && this.cache[property] !== undefined) {
       delete this.cache[property];
     }
     
@@ -107,18 +107,17 @@
     /**
       * Enable event bubbling.
       **/
-    if (Eventful.enableBubbling && value.isEventable) {
-      if (value.EventfulArray) {
-        var eventName = "elementChanged";
-      } else if (value.constructor === Object) {
-        var eventName = "propertyChanged";
-      } else {
-        return;
-      }
+    if (value.EventfulObject && Eventful.enableBubbling) {
       var $this = this;
-      value.bind(eventName, function (sender, e) {
-        // Don't treat direct element changes as bubbled events.
-        $this.triggerChange(prop, eventName === "elementChanged" ? e.bubbled : true);
+      value.bind(eventName, function () {
+        $this.triggerChange("propertyChanged", true);
+      }, $this.getID());
+    } else if (value.EventfulArray) {
+      var $this = this;
+      value.bind("elementChanged", function (sender, e) {
+        // Preserve bubbled status for Array property of Object.
+        // TODO: Ensure works with aggregated events.
+        $this.triggerChange(prop, e.bubbled);
       }, $this.getID());
     }
     
@@ -130,10 +129,12 @@
     * Use [property]Changed event listening to bind a local property to a remote one.
     **/
   EventedObject.bindValue = function (property, remoteObject, propertyName) {
-    this.set(property, remoteObject.get(propertyName));
-    this.bindListener(function(sender, e) {
-      this.set(property, e.value);
-    }, remoteObject, propertyName + "Changed");
+    var $this = this;
+    function syncVal() {
+      $this.set(property, remoteObject.get(propertyName));
+    }
+    remoteObject.bind(propertyName + "Changed", syncVal, $this.getID());
+    syncVal();
   };
   
 }(Eventful));

@@ -8,10 +8,14 @@
   *
   * Some functions not yet wrapped.
   **/
-Eventful.Array = (function() {
+(function(Eventful) {
   
-  var EventedArrayObject = function () { this.intArray = []; this.push.apply(this, arguments); },
-      EventedArray = EventedArrayObject.prototype = Eventful.Mixin({});
+  Eventful.Array = function () {
+    this.intArray = [];
+    this.push.apply(this, arguments);
+  };
+  
+  var EventedArray = Eventful.Array.prototype = Eventful.Mixin({EventfulArray:true});
   
   /**
     * Wrapper to simplify subscribing to elements for bubbling events.
@@ -53,7 +57,7 @@ Eventful.Array = (function() {
   }
   
   EventedArray.set = function (index, value) {
-    var state = this[index] === undefined ? "new" : "update";
+    var state = this.intArray[index] === undefined ? "new" : "update";
     if (state == "update" && this.intArray[index].removeCallbacks !== undefined) {
       this.intArray[index].removeCallbacks(this.getID());
     }
@@ -96,7 +100,4 @@ Eventful.Array = (function() {
     }
   });
   
-  EventedArray.EventfulArray = true;
-  
-  return EventedArrayObject;
-}());
+}(Eventful));

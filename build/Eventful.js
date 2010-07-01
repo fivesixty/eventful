@@ -144,9 +144,11 @@ Eventful.Ploop = (function () {
     };
 
     target.removeCallbacks = function (callerID) {
-      for (var i in this._Listeners) {
-        if (this._Listeners[i][callerID] !== undefined)
-          delete this._Listeners[i][callerID];
+      var thisID = this.getID();
+      for (var i in Listeners[thisID]) {
+        if (Listeners[thisID][i][callerID] !== undefined) {
+          delete Listeners[thisID][i][callerID];
+        }
       }
     };
 
@@ -163,17 +165,9 @@ Eventful.Ploop = (function () {
       }
     };
 
-    target.bindListener = function (func, object, eventName) {
-      var $this = this;
-      object.bind(eventName, function () {
-        func.apply($this, arguments);
-      }, $this.getID());
-    };
-
     target.getID = function () {
       if (this.eventfulUID === undefined) {
         this.eventfulUID = Eventful.newID();
-        return this.eventfulUID;
       }
       return this.eventfulUID;
     };
@@ -182,10 +176,14 @@ Eventful.Ploop = (function () {
   };
 }(Eventful));
 
-Eventful.Array = (function() {
+(function(Eventful) {
 
-  var EventedArrayObject = function () { this.intArray = []; this.push.apply(this, arguments); },
-      EventedArray = EventedArrayObject.prototype = Eventful.Mixin({});
+  Eventful.Array = function () {
+    this.intArray = [];
+    this.push.apply(this, arguments);
+  };
+
+  var EventedArray = Eventful.Array.prototype = Eventful.Mixin({EventfulArray:true});
 
   EventedArray.subscribeEvents = function (args) {
     var $this = this;
@@ -224,7 +222,7 @@ Eventful.Array = (function() {
   }
 
   EventedArray.set = function (index, value) {
-    var state = this[index] === undefined ? "new" : "update";
+    var state = this.intArray[index] === undefined ? "new" : "update";
     if (state == "update" && this.intArray[index].removeCallbacks !== undefined) {
       this.intArray[index].removeCallbacks(this.getID());
     }
@@ -267,10 +265,7 @@ Eventful.Array = (function() {
     }
   });
 
-  EventedArray.EventfulArray = true;
-
-  return EventedArrayObject;
-}());
+}(Eventful));
 
 (function (Eventful) {
 
@@ -282,7 +277,7 @@ Eventful.Array = (function() {
     }
   };
 
-  var EventedObject = Eventful.Object.prototype = Eventful.Mixin();
+  var EventedObject = Eventful.Object.prototype = Eventful.Mixin({EventfulObject: true});
 
   EventedObject.calculatedProperty = function (property, valueFunction, dependencies) {
     if (this.valueDependencies === undefined) {
@@ -300,7 +295,7 @@ Eventful.Array = (function() {
   }
 
   EventedObject.triggerChange = function (property, bubbled) {
-    if (this.cache && this.cache[property]) {
+    if (this.cache && this.cache[property] !== undefined) {
       delete this.cache[property];
     }
 
@@ -337,6 +332,9 @@ Eventful.Array = (function() {
     }
 
     if (typeof value === "function") {
+      if (this.cache && this.cache[prop] !== undefined) {
+        delete this.cache[prop];
+      }
       this.calculatedProperty(prop, value, value.propertyDependencies);
     } else {
       if (typeof(this[prop]) === "function") {
@@ -346,17 +344,15 @@ Eventful.Array = (function() {
       }
     }
 
-    if (Eventful.enableBubbling && value.isEventable) {
-      if (value.EventfulArray) {
-        var eventName = "elementChanged";
-      } else if (value.constructor === Object) {
-        var eventName = "propertyChanged";
-      } else {
-        return;
-      }
+    if (value.EventfulObject && Eventful.enableBubbling) {
       var $this = this;
-      value.bind(eventName, function (sender, e) {
-        $this.triggerChange(prop, eventName === "elementChanged" ? e.bubbled : true);
+      value.bind(eventName, function () {
+        $this.triggerChange("propertyChanged", true);
+      }, $this.getID());
+    } else if (value.EventfulArray) {
+      var $this = this;
+      value.bind("elementChanged", function (sender, e) {
+        $this.triggerChange(prop, e.bubbled);
       }, $this.getID());
     }
 
@@ -365,10 +361,12 @@ Eventful.Array = (function() {
 
 
   EventedObject.bindValue = function (property, remoteObject, propertyName) {
-    this.set(property, remoteObject.get(propertyName));
-    this.bindListener(function(sender, e) {
-      this.set(property, e.value);
-    }, remoteObject, propertyName + "Changed");
+    var $this = this;
+    function syncVal() {
+      $this.set(property, remoteObject.get(propertyName));
+    }
+    remoteObject.bind(propertyName + "Changed", syncVal, $this.getID());
+    syncVal();
   };
 
 }(Eventful));

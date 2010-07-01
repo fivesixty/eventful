@@ -40,8 +40,9 @@
       var thisID = this.getID();
       /** TODO: Make Safer **/
       for (var i in Listeners[thisID]) {
-        if (Listeners[thisID][i][callerID] !== undefined)
+        if (Listeners[thisID][i][callerID] !== undefined) {
           delete Listeners[thisID][i][callerID];
+        }
       }
     };
     
@@ -61,21 +62,10 @@
         }
       }
     };
-    
-    /**
-      * Bind a function, scoped to this object, to an event on another object.
-      **/
-    target.bindListener = function (func, object, eventName) {
-      var $this = this;
-      object.bind(eventName, function () {
-        func.apply($this, arguments);
-      }, $this.getID());
-    };
 
     target.getID = function () {
       if (this.eventfulUID === undefined) {
         this.eventfulUID = Eventful.newID();
-        return this.eventfulUID;
       }
       return this.eventfulUID;
     };
