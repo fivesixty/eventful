@@ -127,7 +127,7 @@ Eventful.Ploop = (function () {
 
 (function (Eventful) {
 
-  var Listeners = Eventful.Listeners = {};
+  var Listeners = {};
 
   Eventful.Mixin = function (target) {
 
