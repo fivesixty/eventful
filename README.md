@@ -16,7 +16,7 @@ Requires Sprockets to build, and closure-compiler for minification.
     > ruby build.rb
     Written to build/Eventful.js
     
-    > ruby build.rb
+    > ruby build.rb -h
     Usage: build.rb [options] filename
       -m, --minify                     Minify Output
       -j, --jquery                     Bundle jQuery
