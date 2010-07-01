@@ -3,7 +3,7 @@
 /**
   * Asynchronous Processing Loop.
   **/
-Eventful.Ploop = (function () {
+(function (Eventful) {
   
   /**
     * Asynchronous function call, derived from:
@@ -17,7 +17,7 @@ Eventful.Ploop = (function () {
     * Uses a back-chases-front array queue, clearing data when it catches up.
     **/
   
-  var Ploop = {}, queue = [],
+  var Ploop = Eventful.Ploop = {}, queue = [],
       eventTrigger = (window.addEventListener && window.postMessage),
       timeouts = {}, front = 0, back = 0, messageName = "#A";
   
@@ -110,6 +110,4 @@ Eventful.Ploop = (function () {
     };
   };
   
-  return Ploop;
-  
-}());
+}(Eventful));

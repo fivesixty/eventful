@@ -52,7 +52,9 @@ concatenation = Sprockets::Secretary.new(
 # Write out file.
 if options[:minify]
   require 'closure-compiler'
-  File.open(options[:filename], 'w') { |file| file.write(Closure::Compiler.new(:compilation_level => 'SIMPLE_OPTIMIZATIONS').compile(concatenation.to_s)) }
+  File.open(options[:filename], 'w') do |file|
+    file.write('"use strict";' + Closure::Compiler.new(:compilation_level => 'SIMPLE_OPTIMIZATIONS').compile(concatenation.to_s))
+  end
 else
   concatenation.save_to options[:filename]
 end

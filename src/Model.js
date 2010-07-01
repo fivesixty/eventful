@@ -9,9 +9,9 @@
   * calc:
   *   an object with calculated properties for the object
   **/
-Eventful.Model = (function () {
+(function (Eventful) {
   
-  return function (constructor, properties) {
+  Eventful.Model = function (constructor, properties) {
     constructor = constructor || [];
     properties = properties || {};
     var i, len;
@@ -33,4 +33,4 @@ Eventful.Model = (function () {
     return Model;
   };
   
-}());
+}(Eventful));
