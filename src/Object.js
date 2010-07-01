@@ -53,8 +53,8 @@
       delete this.cache[property];
     }
     
-    this.triggerEvent(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
-    this.triggerEvent("propertyChanged", {property: property, bubbled: bubbled ? true:false});
+    this.trigger(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
+    this.trigger("propertyChanged", {property: property, bubbled: bubbled ? true:false});
     if (this.valueDependencies && this.valueDependencies[property]) {
       for (var i = 0; i < this.valueDependencies[property].length; i += 1) {
         this.triggerChange(this.valueDependencies[property][i], bubbled);
@@ -113,7 +113,7 @@
         return;
       }
       var $this = this;
-      value.bindCallback(eventName, function (sender, e) {
+      value.bind(eventName, function (sender, e) {
         // Don't treat direct element changes as bubbled events.
         $this.triggerChange(prop, eventName === "elementChanged" ? e.bubbled : true);
       }, $this.getID());

@@ -21,7 +21,7 @@ Eventful.Layout = (function () {
     var tokens = [];
     string.replace(pattern, function (match, token) {
       if (token !== ".") {
-        context.bindCallback (token + "Changed", redraw, eID);
+        context.bind(token + "Changed", redraw, eID);
         tokens.push(token);
       }
     });
@@ -231,7 +231,7 @@ Eventful.Layout = (function () {
       } else {
         // If it's an eventful array, bind redraw to changes in elements.
         if (data.isEventable)
-          data.bindCallback("elementChanged", redraw, renderID);
+          data.bind("elementChanged", redraw, renderID);
       }
       
       // Iterate over the data elements.
@@ -252,7 +252,7 @@ Eventful.Layout = (function () {
     }
     if (property) {
       // Bind the redraw to changes to our data context.
-      parent.bindCallback(property + "Changed", redraw, renderID);
+      parent.bind(property + "Changed", redraw, renderID);
     }
     
     return redraw;

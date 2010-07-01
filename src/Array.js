@@ -27,8 +27,8 @@ Eventful.Array = (function() {
         } else {
           continue;
         }
-        args[i].bindCallback(eventName, function (sender, e) {
-          $this.triggerEvent("elementChanged", {state:"update", value:sender});
+        args[i].bind(eventName, function (sender, e) {
+          $this.trigger("elementChanged", {state:"update", value:sender});
         }, $this.getID());
       }
     }
@@ -39,7 +39,7 @@ Eventful.Array = (function() {
     Array.prototype.push.apply(this.intArray, arguments);
     this.subscribeEvents(arguments);
     for (var i = pLength; i < this.intArray.length; i++) {
-      this.triggerEvent("elementChanged", {state:"new", index:i, value:this[i]});
+      this.trigger("elementChanged", {state:"new", index:i, value:this[i]});
     }
   };
   
@@ -48,7 +48,7 @@ Eventful.Array = (function() {
     if (el.removeCallbacks !== undefined) {
       el.removeCallbacks(this.getID());
     }
-    this.triggerEvent("elementChanged", {state: "delete", index: this.intArray.length, value: el});
+    this.trigger("elementChanged", {state: "delete", index: this.intArray.length, value: el});
     return el;
   }
   
@@ -59,7 +59,7 @@ Eventful.Array = (function() {
     }
     this.intArray[index] = value;
     this.subscribeEvents([value]);
-    this.triggerEvent("elementChanged", {state: state, index: index, value: value});
+    this.trigger("elementChanged", {state: state, index: index, value: value});
   };
   
   EventedArray.splice = function () {
@@ -67,14 +67,14 @@ Eventful.Array = (function() {
       if (this.intArray[arguments[0] + i].removeCallbacks !== undefined) {
         this.intArray[arguments[0] + i].removeCallbacks();
       }
-      this.triggerEvent("elementChanged", {state: "delete", index: arguments[0] + i, value: this[arguments[0] + i]});
+      this.trigger("elementChanged", {state: "delete", index: arguments[0] + i, value: this[arguments[0] + i]});
     }
     
     Array.prototype.splice.apply(this.intArray, arguments);
     
     this.subscribeEvents(Array.prototype.slice.call(arguments, 2));
     for (i = 2, len = arguments.length; i < len; i += 1) {
-      this.triggerEvent("elementChanged", {state:"new", index: arguments[0] + i, value:arguments[i]});
+      this.trigger("elementChanged", {state:"new", index: arguments[0] + i, value:arguments[i]});
     }
   };
   

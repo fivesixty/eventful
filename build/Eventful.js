@@ -119,87 +119,68 @@ Eventful.Ploop = (function () {
 
 }());
 
-Eventful.Mixin = function (target) {
+(function (Eventful) {
 
-  if (target === undefined) {
-    target = {};
-  }
+  var Listeners = Eventful.Listeners = {};
 
-  if (target._Events === undefined) {
-    target._Events = {};
-  } else {
-    var oEvents = target._Events, p;
-    target._Events = {};
-    for (p in oEvents) {
-      if (oEvents.hasOwnProperty(p)) {
-        target._Events[p] = oEvents[p];
+  Eventful.Mixin = function (target) {
+
+    if (target === undefined) {
+      target = {};
+    } else if (target.isEventable) {
+      return target;
+    }
+
+    target.isEventable = true;
+
+    target.bind = function (eventName, callback, callerID) {
+      var thisID = this.getID();
+      switch (true) {
+        case Listeners[thisID] === undefined: Listeners[thisID] = {};
+        case Listeners[thisID][eventName] === undefined: Listeners[thisID][eventName] = {};
+        case Listeners[thisID][eventName][callerID] === undefined: Listeners[thisID][eventName][callerID] = [];
+        default: Listeners[thisID][eventName][callerID].push(callback);
       }
-    }
-    return target; /** Can skip rest of initialisation. **/
-  }
+    };
 
-  target.isEventable = true;
+    target.removeCallbacks = function (callerID) {
+      for (var i in this._Listeners) {
+        if (this._Listeners[i][callerID] !== undefined)
+          delete this._Listeners[i][callerID];
+      }
+    };
 
-  target.registerEvent = function (eventName, methods) {
-    this._Events[eventName] = methods;
-  };
-
-  target.bindCallback = function (eventName, callback, callerID) {
-    if (this._Listeners === undefined) {
-      this._Listeners = {};
-    }
-    if (this._Listeners[eventName] === undefined) {
-      this._Listeners[eventName] = [];
-    }
-    if (this._Listeners[eventName][callerID] === undefined) {
-      this._Listeners[eventName][callerID] = [];
-    }
-    this._Listeners[eventName][callerID].push(callback);
-  };
-
-  target.removeEventCallback = function (eventName, callerID) {
-    if (this._Listeners[eventName][callerID] !== undefined)
-      delete this._Listeners[eventName][callerID];
-  };
-
-  target.removeCallbacks = function (callerID) {
-    for (var i in this._Listeners) {
-      if (this._Listeners[i][callerID] !== undefined)
-        delete this._Listeners[i][callerID];
-    }
-  };
-
-  target.triggerEvent = function (eventName, e) {
-    var eventListeners;
-    if (this._Listeners !== undefined && (eventListeners = this._Listeners[eventName]) !== undefined) {
-
-      for (var callerID in eventListeners) {
-        if (eventListeners.hasOwnProperty(callerID)) {
-          for (var i = 0, len = eventListeners[callerID].length; i < len; i++) {
-            Eventful.Ploop.async(this, eventListeners[callerID][i], e, this.getID() + eventName + callerID + i);
+    target.trigger = function (eventName, e) {
+      var thisID = this.getID(), eventListeners;
+      if (Listeners[thisID] !== undefined && (eventListeners = Listeners[thisID][eventName]) !== undefined) {
+        for (var callerID in eventListeners) {
+          if (eventListeners.hasOwnProperty(callerID)) {
+            for (var i = 0, len = eventListeners[callerID].length; i < len; i++) {
+              Eventful.Ploop.async(this, eventListeners[callerID][i], e, this.getID() + eventName + callerID + i);
+            }
           }
         }
       }
-    }
-  };
+    };
 
-  target.bindListener = function (func, object, eventName) {
-    var $this = this;
-    object.bindCallback(eventName, function () {
-      func.apply($this, arguments);
-    }, $this.getID());
-  };
+    target.bindListener = function (func, object, eventName) {
+      var $this = this;
+      object.bind(eventName, function () {
+        func.apply($this, arguments);
+      }, $this.getID());
+    };
 
-  target.getID = function () {
-    if (this.eventfulUID === undefined) {
-      this.eventfulUID = Eventful.newID();
+    target.getID = function () {
+      if (this.eventfulUID === undefined) {
+        this.eventfulUID = Eventful.newID();
+        return this.eventfulUID;
+      }
       return this.eventfulUID;
-    }
-    return this.eventfulUID;
-  };
+    };
 
-  return target;
-};
+    return target;
+  };
+}(Eventful));
 
 Eventful.Array = (function() {
 
@@ -217,8 +198,8 @@ Eventful.Array = (function() {
         } else {
           continue;
         }
-        args[i].bindCallback(eventName, function (sender, e) {
-          $this.triggerEvent("elementChanged", {state:"update", value:sender});
+        args[i].bind(eventName, function (sender, e) {
+          $this.trigger("elementChanged", {state:"update", value:sender});
         }, $this.getID());
       }
     }
@@ -229,7 +210,7 @@ Eventful.Array = (function() {
     Array.prototype.push.apply(this.intArray, arguments);
     this.subscribeEvents(arguments);
     for (var i = pLength; i < this.intArray.length; i++) {
-      this.triggerEvent("elementChanged", {state:"new", index:i, value:this[i]});
+      this.trigger("elementChanged", {state:"new", index:i, value:this[i]});
     }
   };
 
@@ -238,7 +219,7 @@ Eventful.Array = (function() {
     if (el.removeCallbacks !== undefined) {
       el.removeCallbacks(this.getID());
     }
-    this.triggerEvent("elementChanged", {state: "delete", index: this.intArray.length, value: el});
+    this.trigger("elementChanged", {state: "delete", index: this.intArray.length, value: el});
     return el;
   }
 
@@ -249,7 +230,7 @@ Eventful.Array = (function() {
     }
     this.intArray[index] = value;
     this.subscribeEvents([value]);
-    this.triggerEvent("elementChanged", {state: state, index: index, value: value});
+    this.trigger("elementChanged", {state: state, index: index, value: value});
   };
 
   EventedArray.splice = function () {
@@ -257,14 +238,14 @@ Eventful.Array = (function() {
       if (this.intArray[arguments[0] + i].removeCallbacks !== undefined) {
         this.intArray[arguments[0] + i].removeCallbacks();
       }
-      this.triggerEvent("elementChanged", {state: "delete", index: arguments[0] + i, value: this[arguments[0] + i]});
+      this.trigger("elementChanged", {state: "delete", index: arguments[0] + i, value: this[arguments[0] + i]});
     }
 
     Array.prototype.splice.apply(this.intArray, arguments);
 
     this.subscribeEvents(Array.prototype.slice.call(arguments, 2));
     for (i = 2, len = arguments.length; i < len; i += 1) {
-      this.triggerEvent("elementChanged", {state:"new", index: arguments[0] + i, value:arguments[i]});
+      this.trigger("elementChanged", {state:"new", index: arguments[0] + i, value:arguments[i]});
     }
   };
 
@@ -323,8 +304,8 @@ Eventful.Array = (function() {
       delete this.cache[property];
     }
 
-    this.triggerEvent(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
-    this.triggerEvent("propertyChanged", {property: property, bubbled: bubbled ? true:false});
+    this.trigger(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
+    this.trigger("propertyChanged", {property: property, bubbled: bubbled ? true:false});
     if (this.valueDependencies && this.valueDependencies[property]) {
       for (var i = 0; i < this.valueDependencies[property].length; i += 1) {
         this.triggerChange(this.valueDependencies[property][i], bubbled);
@@ -374,7 +355,7 @@ Eventful.Array = (function() {
         return;
       }
       var $this = this;
-      value.bindCallback(eventName, function (sender, e) {
+      value.bind(eventName, function (sender, e) {
         $this.triggerChange(prop, eventName === "elementChanged" ? e.bubbled : true);
       }, $this.getID());
     }
@@ -413,7 +394,7 @@ Eventful.Layout = (function () {
     var tokens = [];
     string.replace(pattern, function (match, token) {
       if (token !== ".") {
-        context.bindCallback (token + "Changed", redraw, eID);
+        context.bind(token + "Changed", redraw, eID);
         tokens.push(token);
       }
     });
@@ -583,7 +564,7 @@ Eventful.Layout = (function () {
         data = [data];
       } else {
         if (data.isEventable)
-          data.bindCallback("elementChanged", redraw, renderID);
+          data.bind("elementChanged", redraw, renderID);
       }
 
       var pEl = el;
@@ -599,7 +580,7 @@ Eventful.Layout = (function () {
       context = oldContext;
     }
     if (property) {
-      parent.bindCallback(property + "Changed", redraw, renderID);
+      parent.bind(property + "Changed", redraw, renderID);
     }
 
     return redraw;
