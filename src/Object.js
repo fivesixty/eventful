@@ -12,14 +12,16 @@
   *         [property]Changed: {value}
   **/
 (function (Eventful) {
+
   /**
     * Constructor and prototype.
-    **/
-    
+    **/  
   Eventful.Object = function EventfulObject(init) {
     if (init !== undefined) {
       for (var prop in init) {
-        if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
+        if (init.hasOwnProperty(prop)) {
+          this.set(prop, init[prop]);
+        }
       }
     }
   };
@@ -43,7 +45,7 @@
         this.valueDependencies[dependencies[i]].push(property);
       }
     }
-  }
+  };
   
   /**
     * Wrapper for triggering a change of a property, triggering dependencies too.
@@ -53,11 +55,11 @@
       delete this.cache[property];
     }
     
-    this.trigger(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
-    this.trigger("propertyChanged", {property: property, bubbled: bubbled ? true:false});
+    this.trigger(property + "Changed", {value: this[property], bubbled: bubbled === true});
+    this.trigger("propertyChanged", {property: property, bubbled: bubbled === true});
     if (this.valueDependencies && this.valueDependencies[property]) {
       for (var i = 0; i < this.valueDependencies[property].length; i += 1) {
-        this.triggerChange(this.valueDependencies[property][i], bubbled);
+        this.triggerChange(this.valueDependencies[property][i], bubbled === true);
       }
     }
   };
@@ -107,13 +109,12 @@
     /**
       * Enable event bubbling.
       **/
+    var $this = this;
     if (value.EventfulObject && Eventful.enableBubbling) {
-      var $this = this;
-      value.bind(eventName, function () {
+      value.bind("propertyChanged", function () {
         $this.triggerChange("propertyChanged", true);
       }, $this.getID());
     } else if (value.EventfulArray) {
-      var $this = this;
       value.bind("elementChanged", function (e) {
         // Preserve bubbled status for Array property of Object.
         // TODO: Ensure works with aggregated events.

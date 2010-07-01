@@ -1,14 +1,15 @@
 "use strict";
 if (console === undefined) {
-  var console = {log:function(m){ /** alert(m); */ }};
+  var console = {log: function (m) { /** alert(m); */ }};
 }
 
 var Eventful = {};
 
 Eventful.newID = (function () {
   var uID = 1;
-  return function() {
-    return uID += 1;
+  return function () {
+    uID += 1;
+    return uID;
   };
 }());
 
@@ -37,14 +38,14 @@ Eventful.Ploop = (function () {
 
 
   var Ploop = {}, queue = [],
-      eventTrigger = window['addEventListener'] && window['postMessage'],
+      eventTrigger = (window.addEventListener && window.postMessage),
       timeouts = {}, front = 0, back = 0, messageName = "#A";
 
   function handleMessage(event) {
-    if (event && !(event.source.evtfulUID === window.evtfulUID && event.data === messageName)) {
-      return;
-    }
     if (event) {
+      if (!((event.data === messageName) && (event.source.evtfulUID === window.evtfulUID))) {
+        return;
+      }
       if (event.stopPropagation) {
         event.stopPropagation();
       } else {
@@ -71,19 +72,23 @@ Eventful.Ploop = (function () {
       timeouts[identifier] = [scope, fn, [event]];
       queue[back] = identifier;
       back += 1;
-      eventTrigger ? window.postMessage(messageName, "*") : setTimeout(handleMessage, 0);
+      if (eventTrigger) {
+        window.postMessage(messageName, "*");
+      } else {
+        setTimeout(handleMessage, 0);
+      }
     } else {
       timeouts[identifier][2].push(event);
     }
   };
 
   if (eventTrigger) {
-    window.evtfulUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+    window.evtfulUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16|0, v = c === 'x' ? r : (r&0x3|0x8);
       return v.toString(16);
     }).toUpperCase();
 
-    if (window['addEventListener']) {
+    if (window.addEventListener) {
       window.addEventListener("message", handleMessage, true);
     } else {
       window.attachEvent("onmessage", handleMessage);
@@ -91,13 +96,14 @@ Eventful.Ploop = (function () {
   }
 
   Ploop.every = function (interval, callback) {
-    var cont = true, delay = interval, start;
-    (start = function () {
+    var cont = true, delay = interval;
+    function start() {
       if (cont) {
         callback();
         setTimeout(start, delay);
       }
-    })();
+    }
+    start();
 
     return {
       stop: function () {
@@ -112,7 +118,7 @@ Eventful.Ploop = (function () {
       interval: function (i) {
         delay = i;
       }
-    }
+    };
   };
 
   return Ploop;
@@ -136,16 +142,20 @@ Eventful.Ploop = (function () {
     target.bind = function (eventName, callback, callerID) {
       var thisID = this.getID();
       switch (true) {
-        case Listeners[thisID] === undefined: Listeners[thisID] = {};
-        case Listeners[thisID][eventName] === undefined: Listeners[thisID][eventName] = {};
-        case Listeners[thisID][eventName][callerID] === undefined: Listeners[thisID][eventName][callerID] = [];
-        default: Listeners[thisID][eventName][callerID].push(callback);
+      case Listeners[thisID] === undefined:
+        Listeners[thisID] = {};
+      case Listeners[thisID][eventName] === undefined:
+        Listeners[thisID][eventName] = {};
+      case Listeners[thisID][eventName][callerID] === undefined:
+        Listeners[thisID][eventName][callerID] = [];
+      default:
+        Listeners[thisID][eventName][callerID].push(callback);
       }
     };
 
     target.removeCallbacks = function (callerID) {
-      var thisID = this.getID();
-      for (var i in Listeners[thisID]) {
+      var thisID = this.getID(), i;
+      for (i in Listeners[thisID]) {
         if (Listeners[thisID][i][callerID] !== undefined) {
           delete Listeners[thisID][i][callerID];
         }
@@ -153,11 +163,11 @@ Eventful.Ploop = (function () {
     };
 
     target.trigger = function (eventName, e) {
-      var thisID = this.getID(), eventListeners;
+      var thisID = this.getID(), eventListeners, callerID, i, len;
       if (Listeners[thisID] !== undefined && (eventListeners = Listeners[thisID][eventName]) !== undefined) {
-        for (var callerID in eventListeners) {
+        for (callerID in eventListeners) {
           if (eventListeners.hasOwnProperty(callerID)) {
-            for (var i = 0, len = eventListeners[callerID].length; i < len; i++) {
+            for (i = 0, len = eventListeners[callerID].length; i < len; i += 1) {
               Eventful.Ploop.async(this, eventListeners[callerID][i], e, this.getID() + eventName + callerID + i);
             }
           }
@@ -176,39 +186,39 @@ Eventful.Ploop = (function () {
   };
 }(Eventful));
 
-(function(Eventful) {
+(function (Eventful) {
 
   Eventful.Array = function () {
     this.intArray = [];
     this.push.apply(this, arguments);
   };
 
-  var EventedArray = Eventful.Array.prototype = Eventful.Mixin({EventfulArray:true});
+  var EventedArray = Eventful.Array.prototype = Eventful.Mixin({EventfulArray: true});
 
   EventedArray.subscribeEvents = function (args) {
-    var $this = this;
-    for (var i = 0, len = args.length; i < len; i++) {
+    var $this = this, i, eventName, len;
+    for (i = 0, len = args.length; i < len; i += 1) {
       if (Eventful.enableBubbling && args[i].isEventable) {
         if (args[i].constructor === Array) {
-          var eventName = "elementChanged";
+          eventName = "elementChanged";
         } else if (args[i].constructor === Object) {
-          var eventName = "propertyChanged";
+          eventName = "propertyChanged";
         } else {
           continue;
         }
         args[i].bind(eventName, function (e) {
-          $this.trigger("elementChanged", {state:"update", value:this});
+          $this.trigger("elementChanged", {state: "update", value: this});
         }, $this.getID());
       }
     }
   };
 
   EventedArray.push = function () {
-    var pLength = this.intArray.length;
+    var pLength = this.intArray.length, i;
     Array.prototype.push.apply(this.intArray, arguments);
     this.subscribeEvents(arguments);
-    for (var i = pLength; i < this.intArray.length; i++) {
-      this.trigger("elementChanged", {state:"new", index:i, value:this[i]});
+    for (i = pLength; i < this.intArray.length; i += 1) {
+      this.trigger("elementChanged", {state: "new", index: i, value: this[i]});
     }
   };
 
@@ -219,11 +229,11 @@ Eventful.Ploop = (function () {
     }
     this.trigger("elementChanged", {state: "delete", index: this.intArray.length, value: el});
     return el;
-  }
+  };
 
   EventedArray.set = function (index, value) {
     var state = this.intArray[index] === undefined ? "new" : "update";
-    if (state == "update" && this.intArray[index].removeCallbacks !== undefined) {
+    if (state === "update" && this.intArray[index].removeCallbacks !== undefined) {
       this.intArray[index].removeCallbacks(this.getID());
     }
     this.intArray[index] = value;
@@ -232,7 +242,9 @@ Eventful.Ploop = (function () {
   };
 
   EventedArray.splice = function () {
-    for (var i = 0; i < arguments[1]; i += 1) {
+    var i, len;
+
+    for (i = 0; i < arguments[1]; i += 1) {
       if (this.intArray[arguments[0] + i].removeCallbacks !== undefined) {
         this.intArray[arguments[0] + i].removeCallbacks();
       }
@@ -243,7 +255,7 @@ Eventful.Ploop = (function () {
 
     this.subscribeEvents(Array.prototype.slice.call(arguments, 2));
     for (i = 2, len = arguments.length; i < len; i += 1) {
-      this.trigger("elementChanged", {state:"new", index: arguments[0] + i, value:arguments[i]});
+      this.trigger("elementChanged", {state: "new", index: arguments[0] + i, value: arguments[i]});
     }
   };
 
@@ -261,7 +273,7 @@ Eventful.Ploop = (function () {
     if (EventedArray[p] === undefined && typeof Array.prototype[p] === "function") {
       EventedArray[p] = function () {
         return Array.prototype[p].apply(this.intArray, arguments);
-      }
+      };
     }
   });
 
@@ -272,7 +284,9 @@ Eventful.Ploop = (function () {
   Eventful.Object = function EventfulObject(init) {
     if (init !== undefined) {
       for (var prop in init) {
-        if (init.hasOwnProperty(prop)) this.set(prop, init[prop]);
+        if (init.hasOwnProperty(prop)) {
+          this.set(prop, init[prop]);
+        }
       }
     }
   };
@@ -292,18 +306,18 @@ Eventful.Ploop = (function () {
         this.valueDependencies[dependencies[i]].push(property);
       }
     }
-  }
+  };
 
   EventedObject.triggerChange = function (property, bubbled) {
     if (this.cache && this.cache[property] !== undefined) {
       delete this.cache[property];
     }
 
-    this.trigger(property + "Changed", {value: this[property], bubbled: bubbled ? true:false});
-    this.trigger("propertyChanged", {property: property, bubbled: bubbled ? true:false});
+    this.trigger(property + "Changed", {value: this[property], bubbled: bubbled === true});
+    this.trigger("propertyChanged", {property: property, bubbled: bubbled === true});
     if (this.valueDependencies && this.valueDependencies[property]) {
       for (var i = 0; i < this.valueDependencies[property].length; i += 1) {
-        this.triggerChange(this.valueDependencies[property][i], bubbled);
+        this.triggerChange(this.valueDependencies[property][i], bubbled === true);
       }
     }
   };
@@ -344,13 +358,12 @@ Eventful.Ploop = (function () {
       }
     }
 
+    var $this = this;
     if (value.EventfulObject && Eventful.enableBubbling) {
-      var $this = this;
-      value.bind(eventName, function () {
+      value.bind("propertyChanged", function () {
         $this.triggerChange("propertyChanged", true);
       }, $this.getID());
     } else if (value.EventfulArray) {
-      var $this = this;
       value.bind("elementChanged", function (e) {
         $this.triggerChange(prop, e.bubbled);
       }, $this.getID());
@@ -371,10 +384,9 @@ Eventful.Ploop = (function () {
 
 }(Eventful));
 
-Eventful.Layout = (function () {
+(function (Eventful) {
 
-  var context = {};
-  var pattern = /{{(.*?)}}/g;
+  var context = {}, pattern = /\{\{([a-z0-9_\-\.]*?)\}\}/gi, jqCleanData = jQuery.cleanData, tagFuncs = {};
 
   function replaceTokens(context, string) {
     return string.replace(pattern, function (match, token) {
@@ -400,54 +412,50 @@ Eventful.Layout = (function () {
   }
 
   function tag(tagName, attrs) {
+    var offset = 1, id, eID = Eventful.newID(), element, p, i, len;
 
-    if (attrs instanceof Array || typeof attrs !== "object" || (attrs instanceof jQuery) || attrs.EventfulArray) {
-      var offset = 1, id;
-    } else {
-      var offset = 2, id = attrs.id;
+    if (!(attrs instanceof Array || typeof attrs !== "object" || (attrs instanceof jQuery) || attrs.EventfulArray)) {
+      offset = 2;
+      id = attrs.id;
     }
 
-    var eID = Eventful.newID();
-
     if (id === undefined) {
-      var element = $("<" + tagName + " />");
+      element = jQuery("<" + tagName + " />");
     } else {
-      var element = $("<" + tagName + " id=\"" + id + "\" />");
+      element = jQuery("<" + tagName + " id=\"" + id + "\" />");
     }
 
     if (offset === 2) {
-      for (var p in attrs) {
+      for (p in attrs) {
         if (attrs.hasOwnProperty(p)) {
-          switch (p) {
-            case "id":
-              break;
-            default:
-              (function ( attr, templateStr, context ) {
-                function redraw() {
-                  element.attr(attr, replaceTokens(context, templateStr));
-                };
-                redraw();
-
-                bindTokens(context, templateStr, redraw, eID);
-              }( p, attrs[p], context ));
+          if (p === "id") {
+            continue;
           }
+          (function (attr, templateStr, context) {
+            function redraw() {
+              element.attr(attr, replaceTokens(context, templateStr));
+            }
+            redraw();
+
+            bindTokens(context, templateStr, redraw, eID);
+          }(p, attrs[p], context));
         }
       }
     }
 
-    for (var i = offset, len = arguments.length; i < len; i++) {
+    for (i = offset, len = arguments.length; i < len; i += 1) {
       if (typeof (arguments[i]) === "string") {
 
-        (function ( templateStr, context ) {
-          var subel = $("<span></span>").appendTo(element);
+        (function (templateStr, context) {
+          var subel = jQuery("<span></span>").appendTo(element);
 
           function redraw() {
             subel.html(replaceTokens(context, templateStr));
-          };
+          }
           redraw();
 
           bindTokens(context, templateStr, redraw, eID);
-        }( arguments[i], context ));
+        }(arguments[i], context));
 
       } else if (typeof (arguments[i]) === "function") {
 
@@ -462,45 +470,40 @@ Eventful.Layout = (function () {
     }
 
     if (context.isEventable) {
-      (function ( context ) {
-        element[0]["eventfulUnbind"] = function () {
+      (function (context) {
+        element[0].eventfulUnbind = function () {
           context.removeCallbacks(eID);
         };
-      }( context ));
+      }(context));
     }
     return element;
   }
 
-  jQuery._cleanData = jQuery.cleanData;
-  jQuery.cleanData = function ( elems ) {
-    for ( var i = 0, elem; (elem = elems[i]) != null; i++ ) {
-      if (elem[ "eventfulUnbind" ]) {
-        elem["eventfulUnbind"]();
-        elem["eventfulUnbind"] = null;
+  jQuery.cleanData = function (elems) {
+    for (var i = 0, elem; (elem = elems[i]) !== undefined; i += 1) {
+      if (elem.eventfulUnbind) {
+        elem.eventfulUnbind();
+        delete elem.eventfulUnbind;
       }
     }
-    return jQuery._cleanData.apply(this, arguments);
-  }
+    return jqCleanData.apply(this, arguments);
+  };
 
-  var tagFuncs = {}, tags = [
-      "html", "head", "body", "script", "meta", "title", "link", "script",
-      "div", "p", "span", "a", "img", "br", "hr",
-      "table", "tr", "th", "td", "thead", "tbody", "tfoot",
-      "ul", "ol", "li",
-      "dl", "dt", "dd",
-      "h1", "h2", "h3", "h4", "h5", "h6", "h7",
-      "form", "input", "label",
-      "tt", "i", "b", "big", "small", "pre",
-      "em", "strong", "dfn", "code", "samp", "kbd", "var", "cite"
-    ];
-  for (var i = 0, len = tags.length; i < len; i++) {
-    var tagName = tags[i];
-    tagFuncs[tagName] = function(tagName) {
-      return function () {
-        return tag.apply(window, [tagName].concat(Array.prototype.slice.call(arguments)));
-      }
-    }(tagName);
-  }
+  [
+    "html", "head", "body", "script", "meta", "title", "link", "script",
+    "div", "p", "span", "a", "img", "br", "hr",
+    "table", "tr", "th", "td", "thead", "tbody", "tfoot",
+    "ul", "ol", "li",
+    "dl", "dt", "dd",
+    "h1", "h2", "h3", "h4", "h5", "h6", "h7",
+    "form", "input", "label",
+    "tt", "i", "b", "big", "small", "pre",
+    "em", "strong", "dfn", "code", "samp", "kbd", "var", "cite"
+  ].each(function (tagName) {
+    tagFuncs[tagName] = function () {
+      return tag.apply(window, [tagName].concat(Array.prototype.slice.call(arguments)));
+    };
+  });
 
   var templates = {};
 
@@ -512,7 +515,7 @@ Eventful.Layout = (function () {
         if (tagFuncs[token.substring(1)] === undefined) {
           return match;
         } else {
-          count++;
+          count += 1;
           return (token.substring(0, 1) + "tagFuncs." + token.substring(1) + "(");
         }
       });
@@ -520,28 +523,26 @@ Eventful.Layout = (function () {
     return str;
   }
 
-  var Layout = function (name, gen) {
+  Eventful.Layout = function (name, gen) {
     var fnStr = gen.toString();
     fnStr = scopeTags(fnStr);
     fnStr = "return (" + fnStr + "(context));";
     templates[name] = new Function("context", "tagFuncs", fnStr);
-  }
+  };
 
   function isElement(o) {
     return (
-      typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
-      typeof o === "object" && o.nodeType === 1 && typeof o.nodeName==="string"
+      (typeof HTMLElement === "object") ? o instanceof HTMLElement : //DOM2
+      (typeof o === "object") && (o.nodeType === 1) && (typeof o.tagName === "string")
     );
   }
 
   Eventful.Object.prototype.render = function (template, property) {
-    var renderID = Eventful.newID();
+    var renderID = Eventful.newID(),
+      el = jQuery('<div style="display: none;">'),
+      data, elements = [], parent = this;
 
-    var el = $('<div style="display: none;">');
-    var data, elements = [];
-    var parent = this;
-
-    var redraw = function (e) {
+    function redraw(e) {
 
       if (isElement(e) || e instanceof jQuery) {
         el.appendTo(e);
@@ -549,7 +550,7 @@ Eventful.Layout = (function () {
         return;
       }
 
-      var oldContext = context;
+      var oldContext = context, pEl = el;
 
       if (data !== undefined) {
         if (data.isEventable) {
@@ -557,7 +558,7 @@ Eventful.Layout = (function () {
         }
 
         elements.each(function (el) {
-          $(el).remove();
+          jQuery(el).remove();
         });
         elements = [];
       }
@@ -570,7 +571,6 @@ Eventful.Layout = (function () {
         data = [data];
       }
 
-      var pEl = el;
       data.each(function (datum) {
         context = datum;
 
@@ -582,31 +582,31 @@ Eventful.Layout = (function () {
 
       context = oldContext;
     }
+
     if (property) {
       parent.bind(property + "Changed", redraw, renderID);
     }
 
     return redraw;
-  }
+  };
+}(Eventful));
 
-  return Layout;
-}());
-
-Eventful.Model = (function() {
+Eventful.Model = (function () {
 
   return function (constructor, properties) {
     constructor = constructor || [];
     properties = properties || {};
+    var i, len;
 
     function Model() {
       if (properties.init) {
-        for (var p in properties.init) {
-          if (properties.init.hasOwnProperty(p)) {
-            this.set(p, new properties.init[p]());
+        for (i in properties.init) {
+          if (properties.init.hasOwnProperty(i)) {
+            this.set(i, new properties.init[i]());
           }
         }
       }
-      for (var i = 0, len = constructor.length; i < len; i++) {
+      for (i = 0, len = constructor.length; i < len; i += 1) {
         this.set(constructor[i], arguments[i]);
       }
     }
@@ -617,33 +617,13 @@ Eventful.Model = (function() {
 
 }());
 
-Eventful.Tween = (function () {
+(function (Eventful) {
 
   var animations = {};
 
-  Eventful.Ploop.every(20, function () {
-    var d = new Date();
-    var thisTick = d.getTime();
-
-    for (var a in animations) {
-      var anim = animations[a];
-      if (thisTick > (anim.start + anim.end)) {
-        delete animations[a];
-        anim.assign(anim.to);
-        if (anim.callback !== undefined) {
-          anim.callback();
-        }
-      } else {
-        anim.assign(Tween[anim.interpolation](anim.from, anim.to, (thisTick - anim.start) / anim.end));
-      }
-    }
-  });
-
-  Tween = function (identifier, object, variable, from, to, time, method, callback) {
-    var d = new Date();
-    var thisTick = d.getTime();
-
-    var t = {
+  Eventful.Tween = function (identifier, object, variable, from, to, time, method, callback) {
+    var d = new Date(), thisTick = d.getTime(),
+    t = {
       assign: object.isEventable ?
         function (value) {
           object.set(variable, value);
@@ -665,19 +645,36 @@ Eventful.Tween = (function () {
     animations[identifier] = t;
   };
 
-  Tween.linear = function (from, to, t) {
-    return (t * (to-from)) + from;
+  Eventful.Ploop.every(20, function () {
+    var d = new Date(), thisTick = d.getTime(), a, anim;
+
+    for (a in animations) {
+      if (animations.hasOwnProperty(a)) {
+        anim = animations[a];
+        if (thisTick > (anim.start + anim.end)) {
+          delete animations[a];
+          anim.assign(anim.to);
+          if (anim.callback !== undefined) {
+            anim.callback();
+          }
+        } else {
+          anim.assign(Eventful.Tween[anim.interpolation](anim.from, anim.to, (thisTick - anim.start) / anim.end));
+        }
+      }
+    }
+  });
+
+  Eventful.Tween.linear = function (from, to, t) {
+    return (t * (to - from)) + from;
   };
 
-  Tween.quadratic = function (from, to, t) {
-    return (t*t * (to-from)) + from;
+  Eventful.Tween.quadratic = function (from, to, t) {
+    return (t * t * (to - from)) + from;
   };
 
-  Tween.invQuadratic = function (from, to, t) {
-    var u = 1-t;
-    return Tween.quadratic(to, from, u);
-  }
+  Eventful.Tween.invQuadratic = function (from, to, t) {
+    var u = 1 - t;
+    return Eventful.Tween.quadratic(to, from, u);
+  };
 
-  return Tween;
-
-}());
+}(Eventful));

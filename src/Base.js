@@ -1,6 +1,6 @@
 "use strict";
 if (console === undefined) {
-  var console = {log:function(m){ /** alert(m); */ }};
+  var console = {log: function (m) { /** alert(m); */ }};
 }
 
 var Eventful = {};
@@ -10,8 +10,9 @@ var Eventful = {};
   **/
 Eventful.newID = (function () {
   var uID = 1;
-  return function() {
-    return uID += 1;
+  return function () {
+    uID += 1;
+    return uID;
   };
 }());
 

@@ -3,33 +3,13 @@
 /**
   * Tween function for adding animations of a property to an asynchronous loop.
   **/
-Eventful.Tween = (function () {
+(function (Eventful) {
 
   var animations = {};
   
-  Eventful.Ploop.every(20, function () {
-    var d = new Date();
-    var thisTick = d.getTime();
-    
-    for (var a in animations) {
-      var anim = animations[a];
-      if (thisTick > (anim.start + anim.end)) {
-        delete animations[a];
-        anim.assign(anim.to);
-        if (anim.callback !== undefined) {
-          anim.callback();
-        }
-      } else {
-        anim.assign(Tween[anim.interpolation](anim.from, anim.to, (thisTick - anim.start) / anim.end));
-      }
-    }
-  });
-  
-  Tween = function (identifier, object, variable, from, to, time, method, callback) {
-    var d = new Date();
-    var thisTick = d.getTime();
-    
-    var t = {
+  Eventful.Tween = function (identifier, object, variable, from, to, time, method, callback) {
+    var d = new Date(), thisTick = d.getTime(),
+    t = {
       assign: object.isEventable ?
         function (value) {
           object.set(variable, value);
@@ -51,19 +31,36 @@ Eventful.Tween = (function () {
     animations[identifier] = t;
   };
   
-  Tween.linear = function (from, to, t) {
-    return (t * (to-from)) + from;
+  Eventful.Ploop.every(20, function () {
+    var d = new Date(), thisTick = d.getTime(), a, anim;
+    
+    for (a in animations) {
+      if (animations.hasOwnProperty(a)) {
+        anim = animations[a];
+        if (thisTick > (anim.start + anim.end)) {
+          delete animations[a];
+          anim.assign(anim.to);
+          if (anim.callback !== undefined) {
+            anim.callback();
+          }
+        } else {
+          anim.assign(Eventful.Tween[anim.interpolation](anim.from, anim.to, (thisTick - anim.start) / anim.end));
+        }
+      }
+    }
+  });
+  
+  Eventful.Tween.linear = function (from, to, t) {
+    return (t * (to - from)) + from;
   };
   
-  Tween.quadratic = function (from, to, t) {
-    return (t*t * (to-from)) + from;
+  Eventful.Tween.quadratic = function (from, to, t) {
+    return (t * t * (to - from)) + from;
   };
   
-  Tween.invQuadratic = function (from, to, t) {
-    var u = 1-t;
-    return Tween.quadratic(to, from, u);
-  }
-  
-  return Tween;
+  Eventful.Tween.invQuadratic = function (from, to, t) {
+    var u = 1 - t;
+    return Eventful.Tween.quadratic(to, from, u);
+  };
 
-}());
+}(Eventful));

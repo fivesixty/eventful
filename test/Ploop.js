@@ -8,9 +8,9 @@ Test.Ploop = function () {
       val: "scope"
     }
     
-    Eventful.Ploop.async(scope, function (sender, arg) {
+    Eventful.Ploop.async(scope, function (arg) {
       ok(true, "function called.");
-      equals(this.val, "scope", "function scoped correctly");
+      equals(this, scope, "function scoped correctly");
       equals(arg, "argument", "function arguments passed");
       start();
     }, ["argument"]);

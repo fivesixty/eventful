@@ -9,21 +9,22 @@
   * calc:
   *   an object with calculated properties for the object
   **/
-Eventful.Model = (function() {
+Eventful.Model = (function () {
   
   return function (constructor, properties) {
     constructor = constructor || [];
     properties = properties || {};
+    var i, len;
     
     function Model() {
       if (properties.init) {
-        for (var p in properties.init) {
-          if (properties.init.hasOwnProperty(p)) {
-            this.set(p, new properties.init[p]());
+        for (i in properties.init) {
+          if (properties.init.hasOwnProperty(i)) {
+            this.set(i, new properties.init[i]());
           }
         }
       }
-      for (var i = 0, len = constructor.length; i < len; i++) {
+      for (i = 0, len = constructor.length; i < len; i += 1) {
         this.set(constructor[i], arguments[i]);
       }
     }
