@@ -31,8 +31,8 @@
         } else {
           continue;
         }
-        args[i].bind(eventName, function (sender, e) {
-          $this.trigger("elementChanged", {state:"update", value:sender});
+        args[i].bind(eventName, function (e) {
+          $this.trigger("elementChanged", {state:"update", value:this});
         }, $this.getID());
       }
     }

@@ -114,7 +114,7 @@
       }, $this.getID());
     } else if (value.EventfulArray) {
       var $this = this;
-      value.bind("elementChanged", function (sender, e) {
+      value.bind("elementChanged", function (e) {
         // Preserve bubbled status for Array property of Object.
         // TODO: Ensure works with aggregated events.
         $this.triggerChange(prop, e.bubbled);

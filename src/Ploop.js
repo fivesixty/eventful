@@ -49,7 +49,7 @@ Eventful.Ploop = (function () {
   Ploop.async = function (scope, fn, event, identifier) {
     identifier = identifier || Eventful.newID();
     if (timeouts[identifier] === undefined) {
-      timeouts[identifier] = [scope, fn, [scope, event]];
+      timeouts[identifier] = [scope, fn, [event]];
       queue[back] = identifier;
       back += 1;
       eventTrigger ? window.postMessage(messageName, "*") : setTimeout(handleMessage, 0);

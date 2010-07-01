@@ -120,15 +120,15 @@ Eventful.Layout = (function () {
   /**
     * Wrap around jQuery.cleanData to clear Eventful bindings from removed elements.
     **/
-  jQuery._cleanData = jQuery.cleanData;
+  var cd = jQuery.cleanData;
   jQuery.cleanData = function ( elems ) {
     for ( var i = 0, elem; (elem = elems[i]) != null; i++ ) {
-      if (elem[ "eventfulUnbind" ]) {
+      if (elem["eventfulUnbind"]) {
         elem["eventfulUnbind"]();
         elem["eventfulUnbind"] = null;
       }
     }
-    return jQuery._cleanData.apply(this, arguments);
+    return cd.apply(this, arguments);
   }
   
   /**
@@ -182,6 +182,14 @@ Eventful.Layout = (function () {
     templates[name] = new Function("context", "tagFuncs", fnStr);
   }
   
+  /** http://stackoverflow.com/questions/384286/ **/
+  function isElement(o) {
+    return (
+      typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
+      typeof o === "object" && o.nodeType === 1 && typeof o.nodeName==="string"
+    );
+  }
+  
   /**
     * Render takes a template name, a parent object, and a property of that object to use as a context.
     * If property is absent, the parent object is used as the data context.
@@ -194,21 +202,18 @@ Eventful.Layout = (function () {
     var data, elements = [];
     var parent = this;
     
-    var redraw = function (sender, e) {
+    var redraw = function (e) {
       
-      // Don't redraw on bubbled changes (tag bindings update from these).
-      if (e !== undefined && e.bubbled === true) {
+      // If argument is a DOM/jQuery element, append to it.
+      if (isElement(e) || e instanceof jQuery) {
+        el.appendTo(e);
+      } else if (e.bubbled) {
+        // Ignore bubbled events.
         return;
       }
       
       // Save the context, so we can restore it later.
       var oldContext = context;
-      
-      // If called with a single argument, is the parent tag() rendering
-      // append our start marker tag to the parent tag
-      if (e === undefined && sender !== undefined) {
-        el.appendTo(sender);
-      }
       
       // If this is not the first time called (we have a previous data context stored.
       if (data !== undefined) {
@@ -226,12 +231,12 @@ Eventful.Layout = (function () {
       
       // Get the new data context, and wrap into an array for ease of iteration.
       data = property ? parent.get(property) : parent;
-      if (!(data instanceof Array) && !data.EventfulArray) {
+      
+      // If it's an eventful array, bind redraw to changes in elements.
+      if (data.EventfulArray) {
+        data.bind("elementChanged", redraw, renderID);
+      } else if (!(data instanceof Array)) {
         data = [data];
-      } else {
-        // If it's an eventful array, bind redraw to changes in elements.
-        if (data.isEventable)
-          data.bind("elementChanged", redraw, renderID);
       }
       
       // Iterate over the data elements.

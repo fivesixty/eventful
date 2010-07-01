@@ -68,7 +68,7 @@ Eventful.Ploop = (function () {
   Ploop.async = function (scope, fn, event, identifier) {
     identifier = identifier || Eventful.newID();
     if (timeouts[identifier] === undefined) {
-      timeouts[identifier] = [scope, fn, [scope, event]];
+      timeouts[identifier] = [scope, fn, [event]];
       queue[back] = identifier;
       back += 1;
       eventTrigger ? window.postMessage(messageName, "*") : setTimeout(handleMessage, 0);
@@ -196,8 +196,8 @@ Eventful.Ploop = (function () {
         } else {
           continue;
         }
-        args[i].bind(eventName, function (sender, e) {
-          $this.trigger("elementChanged", {state:"update", value:sender});
+        args[i].bind(eventName, function (e) {
+          $this.trigger("elementChanged", {state:"update", value:this});
         }, $this.getID());
       }
     }
@@ -351,7 +351,7 @@ Eventful.Ploop = (function () {
       }, $this.getID());
     } else if (value.EventfulArray) {
       var $this = this;
-      value.bind("elementChanged", function (sender, e) {
+      value.bind("elementChanged", function (e) {
         $this.triggerChange(prop, e.bubbled);
       }, $this.getID());
     }
@@ -527,6 +527,13 @@ Eventful.Layout = (function () {
     templates[name] = new Function("context", "tagFuncs", fnStr);
   }
 
+  function isElement(o) {
+    return (
+      typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
+      typeof o === "object" && o.nodeType === 1 && typeof o.nodeName==="string"
+    );
+  }
+
   Eventful.Object.prototype.render = function (template, property) {
     var renderID = Eventful.newID();
 
@@ -534,17 +541,15 @@ Eventful.Layout = (function () {
     var data, elements = [];
     var parent = this;
 
-    var redraw = function (sender, e) {
+    var redraw = function (e) {
 
-      if (e !== undefined && e.bubbled === true) {
+      if (isElement(e) || e instanceof jQuery) {
+        el.appendTo(e);
+      } else if (e.bubbled) {
         return;
       }
 
       var oldContext = context;
-
-      if (e === undefined && sender !== undefined) {
-        el.appendTo(sender);
-      }
 
       if (data !== undefined) {
         if (data.isEventable) {
@@ -558,11 +563,11 @@ Eventful.Layout = (function () {
       }
 
       data = property ? parent.get(property) : parent;
-      if (!(data instanceof Array) && !data.EventfulArray) {
+
+      if (data.EventfulArray) {
+        data.bind("elementChanged", redraw, renderID);
+      } else if (!(data instanceof Array)) {
         data = [data];
-      } else {
-        if (data.isEventable)
-          data.bind("elementChanged", redraw, renderID);
       }
 
       var pEl = el;
