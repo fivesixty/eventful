@@ -599,7 +599,10 @@
   }
 
   Eventful.Layout = function (name, gen) {
-    var fnStr = gen.toString();
+    var fnStr = gen.toString()
+      .replace(/^function(?:\s+)?(?:[a-z]+)?\([^\)]*\) \{/, function(match) { return match+"return ("; })
+      .replace(/;?\s*\}$/, function () { return ");}"; });
+    console.log(fnStr);
     fnStr = scopeTags(fnStr);
     fnStr = "return (" + fnStr + "(context));";
     templates[name] = new Function("context", "tagFuncs", "params", fnStr);
