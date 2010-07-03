@@ -125,6 +125,60 @@
     return jqCleanData.apply(this, arguments);
   };
   
+  tagFuncs = {
+    
+    keyupElement: function (input, attribute, caption) {
+      var lcontext = context;
+      input.attr("value", lcontext.get(attribute) || "")
+        .keyup(function () {
+          if (lcontext.get(attribute) !== input.val()) {
+            lcontext.set(attribute, input.val());
+          }
+        });
+      
+      lcontext.bind(attribute + "Changed", function () {
+        input.val(lcontext.get(attribute));
+      });
+      
+      return input;
+    },
+    
+    text: function (attribute, caption) {
+      return this.keyupElement($('<input type="text" />'), attribute, caption);
+    },
+    
+    password: function (attribute, caption) {
+      return this.keyupElement($('<input type="password" />'), attribute, caption);
+    },
+    
+    textarea: function (attribute, caption) {
+      return this.keyupElement($('<textarea />'), attribute, caption);
+    },
+    
+    checkbox: function (attribute, caption) {
+      var lcontext = context;
+      var input = $('<input type="checkbox" />')
+        .attr("checked", lcontext.get(attribute) ? true : false)
+        .change(function () {
+          lcontext.set(attribute, $(this).is(':checked'));
+        });
+      
+      lcontext.bind(attribute + "Changed", function () {
+        input.attr("checked", lcontext.get(attribute) ? true : false)
+      });
+      
+      return input;
+    },
+    
+    form: function () {
+      var form = $('<form />');
+      for (var i = 0; i < arguments.length; i++) {
+        form.append(arguments[i]);
+      }
+      return form;
+    }
+  };
+  
   /**
     * Storage object for functions scoped to the template drawing.
     **/
@@ -135,7 +189,7 @@
     "ul", "ol", "li", 
     "dl", "dt", "dd",
     "h1", "h2", "h3", "h4", "h5", "h6", "h7",
-    "form", "input", "label",
+    "input",
     "tt", "i", "b", "big", "small", "pre",
     "em", "strong", "dfn", "code", "samp", "kbd", "var", "cite"
   ].each(function (tagName) {
@@ -196,8 +250,7 @@
       if (isElement(e) || e instanceof jQuery) {
         el.appendTo(e);
       } else if (e.bubbled) {
-        // Ignore bubbled events.
-        return;
+        return; // Ignore bubbled events.
       }
       
       // Save the context, so we can restore it later.

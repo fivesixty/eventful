@@ -386,97 +386,6 @@
 
 (function (Eventful) {
 
-  var forms = {};
-
-  var object = {};
-
-  var fnObj = {
-
-    keyupElement: function (input, attribute, caption) {
-      input.attr("value", object.get(attribute) || "")
-        .keyup(function () {
-          if (object.get(attribute) !== input.val()) {
-            object.set(attribute, input.val());
-          }
-        });
-
-      object.bind(attribute + "Changed", function () {
-        input.val(object.get(attribute));
-      });
-
-      return input;
-    },
-
-    text: function (attribute, caption) {
-      return fnObj.keyupElement($('<input type="text" />'), attribute, caption);
-    },
-
-    password: function (attribute, caption) {
-      return fnObj.keyupElement($('<input type="password" />'), attribute, caption);
-    },
-
-    textarea: function (attribute, caption) {
-      return fnObj.keyupElement($('<textarea />'), attribute, caption);
-    },
-
-    checkbox: function (attribute, caption) {
-      var input = $('<input type="checkbox" />')
-        .attr("checked", object.get(attribute) ? true : false)
-        .change(function () {
-          object.set(attribute, $(this).is(':checked'));
-        });
-
-      object.bind(attribute + "Changed", function () {
-        input.attr("checked", object.get(attribute) ? true : false)
-      });
-
-      return input;
-    },
-
-    form: function () {
-      var form = $('<form />');
-      for (var i = 0; i < arguments.length; i++) {
-        form.append(arguments[i]);
-      }
-      return form;
-    }
-  }
-
-  function scopeTags(str) {
-    var count;
-    do {
-      count = 0;
-      str = str.replace(/([^\.a-z|^][a-z0-9]+)\(/ig, function (match, token) {
-        if (fnObj[token.substring(1)] === undefined) {
-          return match;
-        } else {
-          count += 1;
-          return (token.substring(0, 1) + "tagFuncs." + token.substring(1) + "(");
-        }
-      });
-    } while (count > 0);
-    return str;
-  }
-
-  Eventful.Form = function (name, gen) {
-    var fnStr = gen.toString();
-    fnStr = scopeTags(fnStr);
-    fnStr = "return (" + fnStr + "(context));";
-    forms[name] = new Function("context", "tagFuncs", fnStr);
-  };
-
-  Eventful.Object.prototype.form = function (name) {
-    var $this = this;
-    object = $this;
-    return function (appendTo) {
-      forms[name]($this, fnObj).appendTo(appendTo);
-    }
-  }
-
-}(Eventful));
-
-(function (Eventful) {
-
   var context = {}, pattern = /\{\{([a-z0-9_\-\.]*?)\}\}/gi, jqCleanData = jQuery.cleanData, tagFuncs = {};
 
   function replaceTokens(context, string) {
@@ -580,6 +489,60 @@
     return jqCleanData.apply(this, arguments);
   };
 
+  tagFuncs = {
+
+    keyupElement: function (input, attribute, caption) {
+      var lcontext = context;
+      input.attr("value", lcontext.get(attribute) || "")
+        .keyup(function () {
+          if (lcontext.get(attribute) !== input.val()) {
+            lcontext.set(attribute, input.val());
+          }
+        });
+
+      lcontext.bind(attribute + "Changed", function () {
+        input.val(lcontext.get(attribute));
+      });
+
+      return input;
+    },
+
+    text: function (attribute, caption) {
+      return this.keyupElement($('<input type="text" />'), attribute, caption);
+    },
+
+    password: function (attribute, caption) {
+      return this.keyupElement($('<input type="password" />'), attribute, caption);
+    },
+
+    textarea: function (attribute, caption) {
+      return this.keyupElement($('<textarea />'), attribute, caption);
+    },
+
+    checkbox: function (attribute, caption) {
+      var lcontext = context;
+      var input = $('<input type="checkbox" />')
+        .attr("checked", lcontext.get(attribute) ? true : false)
+        .change(function () {
+          lcontext.set(attribute, $(this).is(':checked'));
+        });
+
+      lcontext.bind(attribute + "Changed", function () {
+        input.attr("checked", lcontext.get(attribute) ? true : false)
+      });
+
+      return input;
+    },
+
+    form: function () {
+      var form = $('<form />');
+      for (var i = 0; i < arguments.length; i++) {
+        form.append(arguments[i]);
+      }
+      return form;
+    }
+  };
+
   [
     "html", "head", "body", "script", "meta", "title", "link", "script",
     "div", "p", "span", "a", "img", "br", "hr",
@@ -587,7 +550,7 @@
     "ul", "ol", "li",
     "dl", "dt", "dd",
     "h1", "h2", "h3", "h4", "h5", "h6", "h7",
-    "form", "input", "label",
+    "input",
     "tt", "i", "b", "big", "small", "pre",
     "em", "strong", "dfn", "code", "samp", "kbd", "var", "cite"
   ].each(function (tagName) {
@@ -638,7 +601,7 @@
       if (isElement(e) || e instanceof jQuery) {
         el.appendTo(e);
       } else if (e.bubbled) {
-        return;
+        return; // Ignore bubbled events.
       }
 
       var oldContext = context, pEl = el;
