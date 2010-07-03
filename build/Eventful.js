@@ -411,36 +411,43 @@
     return tokens;
   }
 
+  function bindAttributes(attrs, element, eID) {
+    for (var p in attrs) {
+      if (attrs.hasOwnProperty(p)) {
+        if (p === "id") {
+          continue;
+        }
+        (function (attr, templateStr, context) {
+          function redraw() {
+            element.attr(attr, replaceTokens(context, templateStr));
+          }
+          redraw();
+
+          bindTokens(context, templateStr, redraw, eID);
+        }(p, attrs[p], context));
+      }
+    }
+  }
+
+  function makeElement(tagName, context, eID) {
+    var element = jQuery("<" + tagName + " />");
+    if (context.isEventable) {
+      element[0].eventfulUnbind = function () {
+        context.removeCallbacks(eID);
+      };
+    }
+    return element;
+  }
+
   function tag(tagName, attrs) {
-    var offset = 1, id, eID = Eventful.newID(), element, p, i, len;
+    var offset = 1, eID = Eventful.newID(), element = makeElement(tagName, context, eID), i, len;
 
     if (!(attrs instanceof Array || typeof attrs !== "object" || (attrs instanceof jQuery) || attrs.EventfulArray)) {
       offset = 2;
-      id = attrs.id;
-    }
-
-    if (id === undefined) {
-      element = jQuery("<" + tagName + " />");
-    } else {
-      element = jQuery("<" + tagName + " id=\"" + id + "\" />");
     }
 
     if (offset === 2) {
-      for (p in attrs) {
-        if (attrs.hasOwnProperty(p)) {
-          if (p === "id") {
-            continue;
-          }
-          (function (attr, templateStr, context) {
-            function redraw() {
-              element.attr(attr, replaceTokens(context, templateStr));
-            }
-            redraw();
-
-            bindTokens(context, templateStr, redraw, eID);
-          }(p, attrs[p], context));
-        }
-      }
+      bindAttributes(attrs, element, eID);
     }
 
     for (i = offset, len = arguments.length; i < len; i += 1) {
@@ -469,13 +476,6 @@
       }
     }
 
-    if (context.isEventable) {
-      (function (context) {
-        element[0].eventfulUnbind = function () {
-          context.removeCallbacks(eID);
-        };
-      }(context));
-    }
     return element;
   }
 
@@ -487,60 +487,6 @@
       }
     }
     return jqCleanData.apply(this, arguments);
-  };
-
-  tagFuncs = {
-
-    keyupElement: function (input, attribute, caption) {
-      var lcontext = context;
-      input.attr("value", lcontext.get(attribute) || "")
-        .keyup(function () {
-          if (lcontext.get(attribute) !== input.val()) {
-            lcontext.set(attribute, input.val());
-          }
-        });
-
-      lcontext.bind(attribute + "Changed", function () {
-        input.val(lcontext.get(attribute));
-      });
-
-      return input;
-    },
-
-    text: function (attribute, caption) {
-      return this.keyupElement($('<input type="text" />'), attribute, caption);
-    },
-
-    password: function (attribute, caption) {
-      return this.keyupElement($('<input type="password" />'), attribute, caption);
-    },
-
-    textarea: function (attribute, caption) {
-      return this.keyupElement($('<textarea />'), attribute, caption);
-    },
-
-    checkbox: function (attribute, caption) {
-      var lcontext = context;
-      var input = $('<input type="checkbox" />')
-        .attr("checked", lcontext.get(attribute) ? true : false)
-        .change(function () {
-          lcontext.set(attribute, $(this).is(':checked'));
-        });
-
-      lcontext.bind(attribute + "Changed", function () {
-        input.attr("checked", lcontext.get(attribute) ? true : false)
-      });
-
-      return input;
-    },
-
-    form: function () {
-      var form = $('<form />');
-      for (var i = 0; i < arguments.length; i++) {
-        form.append(arguments[i]);
-      }
-      return form;
-    }
   };
 
   [
@@ -558,6 +504,66 @@
       return tag.apply(window, [tagName].concat(Array.prototype.slice.call(arguments)));
     };
   });
+
+
+  function keyupElement (tagName, property, attributes) {
+    var lcontext = context, eID = Eventful.newID(), input = makeElement(tagName, context, eID);
+
+    input.keyup(function () {
+        if (lcontext.get(property) !== input.val()) {
+          lcontext.set(property, input.val());
+        }
+      });
+
+    bindAttributes(attributes, input, eID);
+
+    return input;
+  }
+
+  tagFuncs.text = function (property, attributes) {
+    attributes = attributes || {};
+    attributes.type = "text";
+    attributes.value = "{{" + property + "}}";
+
+    return keyupElement("input", property, attributes);
+  };
+  tagFuncs.password = function (property, attributes) {
+    attributes = attributes || {};
+    attributes.type = "password";
+    attributes.value = "{{" + property + "}}";
+
+    return keyupElement("input", property, attributes);
+  };
+  tagFuncs.textarea = function (property, attributes) {
+    attributes = attributes || {};
+    attributes.value = "{{" + property + "}}";
+
+    return keyupElement("textarea", property, attributes);
+  };
+
+  tagFuncs.checkbox = function (property, attributes) {
+    var lcontext = context;
+    var input = jQuery('<input type="checkbox" />')
+      .attr("checked", lcontext.get(property) ? true : false)
+      .change(function () {
+        lcontext.set(property, $(this).is(':checked'));
+      });
+
+    lcontext.bind(property + "Changed", function () {
+      input.attr("checked", lcontext.get(property) ? true : false)
+    });
+
+    return input;
+  };
+
+  tagFuncs.form = function () {
+    var form = jQuery('<form />');
+    for (var i = 0; i < arguments.length; i++) {
+      form.append(arguments[i]);
+    }
+    return form;
+  };
+
 
   var templates = {};
 
@@ -581,7 +587,7 @@
     var fnStr = gen.toString();
     fnStr = scopeTags(fnStr);
     fnStr = "return (" + fnStr + "(context));";
-    templates[name] = new Function("context", "tagFuncs", fnStr);
+    templates[name] = new Function("context", "tagFuncs", "params", fnStr);
   };
 
   function isElement(o) {
@@ -591,10 +597,15 @@
     );
   }
 
-  Eventful.Object.prototype.render = function (template, property) {
+  Eventful.Object.prototype.render = function (template, property, params) {
     var renderID = Eventful.newID(),
       el = jQuery('<div style="display: none;">'),
       data, elements = [], parent = this;
+
+    if (typeof property === "object") {
+      params = property;
+      property = false;
+    }
 
     function redraw(e) {
 
@@ -628,7 +639,7 @@
       data.each(function (datum) {
         context = datum;
 
-        var ret = templates[template](context, tagFuncs);
+        var ret = templates[template](context, tagFuncs, params);
         pEl.after(ret);
         pEl = ret;
         elements.push(ret[0]);
