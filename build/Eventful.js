@@ -496,7 +496,7 @@
     "ul", "ol", "li",
     "dl", "dt", "dd",
     "h1", "h2", "h3", "h4", "h5", "h6", "h7",
-    "input",
+    "input", "label",
     "tt", "i", "b", "big", "small", "pre",
     "em", "strong", "dfn", "code", "samp", "kbd", "var", "cite"
   ].each(function (tagName) {
@@ -510,15 +510,26 @@
     var lcontext = context, eID = Eventful.newID(), input = makeElement(tagName, context, eID);
 
     input.keyup(function () {
-        if (lcontext.get(property) !== input.val()) {
-          lcontext.set(property, input.val());
-        }
-      });
+      if (lcontext.get(property) !== input.val()) {
+        lcontext.set(property, input.val());
+      }
+    });
 
     bindAttributes(attributes, input, eID);
 
     return input;
   }
+
+  tagFuncs.hidden = function (property, attributes) {
+    var eID = Eventful.newID(), input = makeElement("input", context, eID);
+
+    attributes = attributes || {};
+    attributes.type="hidden";
+    attributes.value="{{" + property + "}}";
+    bindAttributes(attributes, input, eID);
+
+    return input;
+  };
 
   tagFuncs.text = function (property, attributes) {
     attributes = attributes || {};
@@ -542,9 +553,13 @@
   };
 
   tagFuncs.checkbox = function (property, attributes) {
-    var lcontext = context;
-    var input = jQuery('<input type="checkbox" />')
-      .attr("checked", lcontext.get(property) ? true : false)
+    var lcontext = context, eID = Eventful.newID(), input = makeElement("input", context, eID);
+
+    attributes = attributes || {};
+    attributes.type = "checkbox";
+    bindAttributes(attributes, input, eID);
+
+    input.attr("checked", lcontext.get(property) ? true : false)
       .change(function () {
         lcontext.set(property, $(this).is(':checked'));
       });
